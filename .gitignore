@@ -54,3 +54,14 @@ Thumbs.db
 # Nockchain wallet
 .nockchain-wallet/
 ~/.nockchain-wallet/
+
+# Local documentation (not for GitHub)
+QUICKSTART.md
+PROJECT_SUMMARY.md
+INDEX.md
+SETUP_COMPLETE.txt
+
+# Development artifacts
+balances/
+notes-*.csv
+*.log

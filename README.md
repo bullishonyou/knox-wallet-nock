@@ -1,309 +1,305 @@
-# KNOX - Nockchain Wallet
+# KNOX - Nockchain Web Wallet
 
-🔐 A modern, open-source web-based wallet application for the Nockchain protocol.
+🔐 **A modern, open-source, easy-to-use web wallet for Nockchain**
 
-## Features
+KNOX is a simple web-based wallet application that makes it easy to create wallets, manage keys, check balances, and send transactions on the Nockchain network—all from your browser.
 
-- ✅ **Create New Wallets** - Generate new keypairs with secure key management
-- 📥 **Import Wallets** - Import existing wallets via seed phrase or key file
-- 💰 **View Balance** - Check your balance and transaction history
-- 📤 **Send Transactions** - Send NOCK to other addresses with customizable fees
+---
 
-## Requirements
+## 📋 Quick Start (5 Minutes)
 
-Before installing KNOX, make sure you have:
+### Prerequisites
 
-1. **Python 3.9+** - [Download Python](https://www.python.org/downloads/)
-2. **Nockchain CLI** - Install from [Nockchain Repository](https://github.com/zorp-corp/nockchain)
-3. **Running Nockchain Node** - A local node must be running for most operations
+Before you begin, you need:
 
-## Installation
+1. **Python 3.9 or higher** - [Download here](https://www.python.org/downloads/)
+2. **Nockchain CLI tools** - Follow the [Nockchain setup guide](https://github.com/zorp-corp/nockchain)
+3. **A running Nockchain node** - Start this before using KNOX
 
-### 1. Clone the Repository
+### Installation Steps
+
+#### Step 1: Clone the Repository
 
 ```bash
 git clone https://github.com/zorp-corp/knox-wallet-nock.git
 cd knox-wallet-nock
 ```
 
-### 2. Create a Virtual Environment (Recommended)
+#### Step 2: Create a Python Virtual Environment
 
+**On macOS/Linux:**
 ```bash
-# macOS/Linux
 python3 -m venv venv
 source venv/bin/activate
+```
 
-# Windows
+**On Windows:**
+```bash
 python -m venv venv
 venv\Scripts\activate
 ```
 
-### 3. Install Dependencies
+#### Step 3: Install Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Run the Application
+#### Step 4: Start the Application
 
 ```bash
 python app.py
 ```
 
-The application will start on `http://localhost:5000`
+You should see:
+```
+* Running on http://127.0.0.1:5000
+```
 
-## Usage
+**Open your browser to:** `http://localhost:5000`
 
-### Dashboard
+---
 
-Navigate to the dashboard to:
-- Check active address details
-- See quick access to main features
+## 🎯 Features
 
-### Create Wallet
+| Feature | Description |
+|---------|-------------|
+| 🔑 **Create Wallet** | Generate a new wallet with secure keypair |
+| 📥 **Import Wallet** | Import existing wallet using seed phrase or private key |
+| 💰 **Check Balance** | View your balance and full transaction history |
+| 📤 **Send Transaction** | Send NOCK to other addresses |
+| 📊 **Manage Wallets** | View all your wallets in one place |
 
-1. Click "Create Wallet" in the navigation menu
-2. Click "Generate New Wallet"
-3. Save your private key and seed phrase securely
-4. Your new wallet is ready to use
+---
 
-**⚠️ Important:** Always save your private key and seed phrase in a secure location. You cannot recover your wallet without them!
+## 📖 How to Use KNOX
 
-### Import Wallet
+### 1. Create a New Wallet
 
-1. Click "Import Wallet" in the navigation menu
-2. Choose import method:
-   - **Seed Phrase**: Paste your seed phrase
-   - **Private Key**: Paste your private key
-3. Click "Import Wallet"
+1. Go to **Create Wallet** in the menu
+2. Click **Generate New Wallet**
+3. You'll see your wallet info in copyable boxes:
+   - **Address** (public address)
+   - **Private Key** (keep secret!)
+   - **Public Key**
+   - **Seed Phrase** (backup for recovery)
+   - **Version** (0 or 1)
 
-### Check Balance
+⚠️ **IMPORTANT:** Save your **Private Key** and **Seed Phrase** somewhere safe. You cannot recover your wallet without them!
 
-1. Click "Balance" in the navigation menu
-2. Select your address from the dropdown
-3. Click "Check Balance"
-4. View your total balance and transaction history
+### 2. Import an Existing Wallet
 
-Amounts are displayed in NOCK (1 NOCK = 65536 nicks)
+1. Go to **Import Wallet** in the menu
+2. Choose your import method:
+   - **Seed Phrase**: Enter your seed phrase (space-separated words)
+   - **Extended Private Key**: Enter your private key
+3. Select the wallet version (0 or 1)
+4. Click **Import Wallet**
+5. Your wallet is now active!
 
-### Send Transaction
+### 3. Check Your Balance
 
-1. Click "Send" in the navigation menu
-2. Select the sender address
-3. Enter the recipient's public address
+1. Go to **Balance** in the menu
+2. Select your wallet address from the dropdown
+3. Click **Check Balance** 🔄
+4. See your total balance and all transactions with block numbers
+
+**Note:** Only v0 addresses can show balances. v1 addresses show a notice.
+
+### 4. Send a Transaction
+
+1. Go to **Send** in the menu
+2. Select your wallet (sender)
+3. Enter the recipient's address
 4. Enter the amount in NOCK
-5. Set the transaction fee (default: 0.00001 NOCK)
-6. Review the summary
-7. Click "Send Transaction"
+5. Set transaction fee (default: 0.00001 NOCK)
+6. Click **Send Transaction**
 
-**Note:** Ensure your wallet has sufficient balance to cover both the amount and fee.
+✅ Transaction sent! The blockchain will confirm it.
 
-## Configuration
+### 5. Manage Multiple Wallets
 
-### Node Connection
+1. Go to **Manage Wallets** in the menu
+2. See all your wallets (address, version, active status)
+3. Click on an inactive wallet to make it your active wallet
+4. Your dashboard will update automatically
 
-KNOX automatically connects to the Nockchain node. The default configuration is:
+---
 
-- **Private gRPC Port**: `5555` (for local node connection)
-- **Public gRPC Server**: `https://nockchain-api.zorp.io`
+## 📁 Project Structure
 
-To customize these settings, modify the `cli_integration.py` file:
+```
+knox-wallet-nock/
+├── app.py                    # Flask web server & API
+├── cli_integration.py        # Nockchain CLI wrapper
+├── requirements.txt          # Python packages
+├── README.md                 # This file
+├── templates/                # Web pages
+│   ├── base.html            # Navigation header
+│   ├── dashboard.html       # Home page
+│   ├── create_wallet.html   # Create wallet page
+│   ├── import_wallet.html   # Import wallet page
+│   ├── balance.html         # Check balance page
+│   ├── manage_wallets.html  # All wallets page
+│   └── send_transaction.html # Send TX page
+└── static/                  # CSS & JavaScript
+    ├── css/style.css        # Dark theme styles
+    └── js/app.js           # Helper functions
+```
+
+---
+
+## 🔧 Configuration
+
+### Change Node Settings
+
+Edit `cli_integration.py` to use a different node:
 
 ```python
 cli = NockchainWalletCLI(
-    private_grpc_port=5555,
-    public_grpc_addr="https://nockchain-api.zorp.io"
+    private_grpc_port=5555,           # Your local node port
+    public_grpc_addr="https://nockchain-api.zorp.io"  # Fallback server
 )
 ```
 
 ### Environment Variables
 
-Create a `.env` file to configure:
+Create a `.env` file to customize Flask settings:
 
 ```env
-# Flask configuration
 SECRET_KEY=your-secret-key-here
 FLASK_ENV=development
 FLASK_DEBUG=True
 ```
 
-## Project Structure
+---
 
-```
-knox-wallet-nock/
-├── app.py                 # Main Flask application
-├── cli_integration.py     # Nockchain CLI wrapper
-├── requirements.txt       # Python dependencies
-├── README.md             # This file
-├── .gitignore            # Git ignore rules
-├── templates/            # HTML templates
-│   ├── base.html         # Base layout
-│   ├── dashboard.html    # Dashboard
-│   ├── create_wallet.html
-│   ├── import_wallet.html
-│   ├── balance.html
-│   └── send_transaction.html
-└── static/               # Static assets
-    ├── css/
-    │   └── style.css     # Main stylesheet
-    └── js/
-        └── app.js        # JavaScript utilities
-```
-
-## API Endpoints
-
-### GET `/` 
-Dashboard homepage
-
-### GET `/api/status`
-Get wallet and node status
-```json
-{
-  "success": true,
-  "connected": true,
-  "addresses": ["address1", "address2"],
-  "error": null
-}
-```
-
-### POST `/api/create-wallet`
-Create a new wallet
-```json
-{
-  "success": true,
-  "message": "New wallet created!",
-  "data": {...}
-}
-```
-
-### POST `/api/import-wallet`
-Import a wallet
-```json
-{
-  "seed_phrase": "word1 word2 ...",
-  "key_file": null
-}
-```
-
-### GET `/api/balance/<pubkey>`
-Get balance for a public key
-```json
-{
-  "success": true,
-  "pubkey": "...",
-  "total_balance_nicks": 1000000,
-  "total_balance_nock": 15.26,
-  "transactions": [...]
-}
-```
-
-### POST `/api/send-transaction`
-Send a transaction
-```json
-{
-  "sender": "...",
-  "recipient": "...",
-  "amount": 1.5,
-  "fee": 0.00001
-}
-```
-
-## Nockchain Integration
-
-KNOX uses the `nockchain-wallet` CLI tool for all wallet operations. Make sure you have the latest version installed:
-
-```bash
-# Check nockchain-wallet version
-nockchain-wallet --version
-
-# View available commands
-nockchain-wallet --help
-```
-
-For more information about Nockchain, visit the [official repository](https://github.com/zorp-corp/nockchain).
-
-## Development
-
-### Setting Up Development Environment
-
-```bash
-# Install with development dependencies
-pip install -r requirements.txt
-
-# Run with debug mode
-python app.py
-```
-
-### Running Tests
-
-```bash
-pytest
-```
-
-### Code Style
-
-This project follows PEP 8 guidelines. Format your code with:
-
-```bash
-black app.py cli_integration.py
-```
-
-## Security Considerations
-
-1. **Private Keys**: Never share your private key or seed phrase
-2. **Local Node**: For security, keep your Nockchain node running locally
-3. **HTTPS**: In production, always use HTTPS for the web interface
-4. **Secret Key**: Change the `SECRET_KEY` in production
-5. **Backup**: Regularly backup your wallet files located in `~/.nockchain-wallet/`
-
-## Troubleshooting
+## 🆘 Troubleshooting
 
 ### "nockchain-wallet not found"
-Make sure nockchain-wallet is installed and in your PATH:
+
+The `nockchain-wallet` CLI is not installed or not in your PATH.
+
+**Solution:** Install Nockchain from the [official repository](https://github.com/zorp-corp/nockchain)
+
 ```bash
-which nockchain-wallet
+# Verify installation
+nockchain-wallet --version
 ```
 
 ### "Cannot connect to node"
-Ensure your Nockchain node is running:
+
+Your Nockchain node is not running or not reachable.
+
+**Solution:** Start your Nockchain node:
+
 ```bash
-# Start the Nockchain node
 nockchain-node
 ```
 
+### "Balance shows zero but I have coins"
+
+You're checking a v1 address (balance queries only work for v0 addresses).
+
+**Solution:** Switch to a v0 wallet in **Manage Wallets**
+
 ### "Transaction failed"
-- Verify recipient address is valid
-- Check that you have sufficient balance for the transaction + fee
-- Ensure the node is fully synced
 
-## Contributing
+Several possible reasons:
 
-We welcome contributions! Please:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## License
-
-This project is open source and available under the MIT License. See the LICENSE file for details.
-
-## Support
-
-For issues, questions, or suggestions:
-
-1. Check the [Nockchain documentation](https://github.com/zorp-corp/nockchain)
-2. Open an issue on [GitHub Issues](https://github.com/zorp-corp/knox-wallet-nock/issues)
-3. Join the Nockchain community
-
-## Credits
-
-- Built with ❤️ for the Nockchain community
-- UI inspired by modern wallet applications
-- Built with Flask and vanilla JavaScript
+- ❌ **Invalid address**: Copy-paste the full recipient address
+- ❌ **Insufficient balance**: Balance must cover amount + fee
+- ❌ **Node not synced**: Wait for your node to sync to latest block
+- ❌ **Fee too low**: Try increasing the fee
 
 ---
 
-**KNOX** - Making Nockchain accessible to everyone 🚀
+## 💾 Wallet Data
+
+KNOX stores wallet data through the `nockchain-wallet` CLI. Your keys are stored in:
+
+```
+~/.nockchain-wallet/
+```
+
+**Backup Important:** Always backup this folder to recover your wallets!
+
+---
+
+## 🔒 Security Tips
+
+✅ **DO:**
+- Save your seed phrase and private key offline
+- Use a strong password if your node requires one
+- Run the node locally for maximum security
+- Keep your Python environment up to date
+
+❌ **DON'T:**
+- Share your private key or seed phrase with anyone
+- Save keys in email or cloud storage
+- Use KNOX on untrusted computers
+- Send money to unverified addresses
+
+---
+
+## 📚 API Reference
+
+For developers integrating with KNOX:
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/status` | GET | Get wallet status |
+| `/api/create-wallet` | POST | Create new wallet |
+| `/api/import-wallet` | POST | Import wallet |
+| `/api/balance/<address>` | GET | Get balance & transactions |
+| `/api/wallets` | GET | List all wallets |
+| `/api/active-wallet` | GET | Get active wallet |
+| `/api/refresh-balance` | POST | Fetch fresh balance |
+| `/api/set-active-wallet` | POST | Change active wallet |
+
+---
+
+## 🚀 Running in Production
+
+For production use:
+
+1. Set `FLASK_ENV=production`
+2. Use a production WSGI server:
+   ```bash
+   pip install gunicorn
+   gunicorn -w 4 app.py
+   ```
+3. Put behind HTTPS reverse proxy (Nginx, Apache)
+4. Use strong `SECRET_KEY`
+5. Run on a trusted server only
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions!
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/my-feature`
+3. Make your changes
+4. Commit: `git commit -m 'Add my feature'`
+5. Push: `git push origin feature/my-feature`
+6. Open a Pull Request
+
+---
+
+## 📞 Support & Resources
+
+- **Nockchain Docs**: [github.com/zorp-corp/nockchain](https://github.com/zorp-corp/nockchain)
+- **Issues**: [GitHub Issues](https://github.com/zorp-corp/knox-wallet-nock/issues)
+- **Nockchain Community**: [Official channels](https://github.com/zorp-corp)
+
+---
+
+## 📄 License
+
+MIT License - See LICENSE file for details
+
+---
+
+**KNOX** - Making Nockchain wallets accessible to everyone 🚀
