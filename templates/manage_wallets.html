@@ -84,8 +84,24 @@
             
             if (data.success) {
                 showSuccess(`Wallet ${address.substring(0, 10)}... set as active`);
-                // Reload page after a short delay
-                setTimeout(() => location.reload(), 1500);
+                
+                // Cache the active address in localStorage
+                localStorage.setItem('activeAddress', address);
+                
+                // Get version from the current wallet list and cache it
+                const rows = document.querySelectorAll('.wallets-table-actual tbody tr');
+                for (const row of rows) {
+                    const addressCell = row.querySelector('.address-cell code');
+                    if (addressCell && addressCell.textContent.includes(address)) {
+                        const versionCell = row.querySelector('.version-cell');
+                        const version = versionCell.textContent.replace('v', '');
+                        localStorage.setItem('activeVersion', version);
+                        break;
+                    }
+                }
+                
+                // Redirect to dashboard instead of reloading
+                setTimeout(() => window.location.href = '/', 1500);
             } else {
                 showError(data.error || 'Failed to set active wallet');
             }
