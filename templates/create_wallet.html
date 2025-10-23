@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block title %}Create Wallet - KNOX{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <h1>Create New Wallet</h1>
+    
+    <div class="form-card">
+        <p class="form-info">Generate a new wallet with a fresh keypair. Make sure to save your private key and seed phrase securely!</p>
+        
+        <button id="create-btn" class="btn btn-primary">Generate New Wallet</button>
+        
+        <div id="result-container" class="hidden">
+            <div id="success-alert" class="alert alert-success">
+                ✓ Wallet created successfully! Save this information securely.
+            </div>
+            
+            <!-- Wallet Info Cards -->
+            <div class="wallet-info-grid">
+                <!-- Address Card -->
+                <div class="info-box" data-field="address">
+                    <div class="info-box-header">
+                        <h3>📍 Address (pkh address)</h3>
+                        <span class="copy-badge">Click to copy</span>
+                    </div>
+                    <div class="info-box-content">
+                        <code id="address-value">-</code>
+                    </div>
+                    <div class="copy-feedback">✓ Copied!</div>
+                </div>
+
+                <!-- Version Card -->
+                <div class="info-box" data-field="version">
+                    <div class="info-box-header">
+                        <h3>🔢 Version</h3>
+                        <span class="copy-badge">Click to copy</span>
+                    </div>
+                    <div class="info-box-content">
+                        <code id="version-value">-</code>
+                    </div>
+                    <div class="copy-feedback">✓ Copied!</div>
+                </div>
+
+                <!-- Extended Private Key Card (Full Width) -->
+                <div class="info-box info-box-full" data-field="private_key">
+                    <div class="info-box-header">
+                        <h3>🔐 Extended Private Key (KEEP SAFE!)</h3>
+                        <span class="copy-badge">Click to copy</span>
+                    </div>
+                    <div class="info-box-content">
+                        <code id="private-key-value">-</code>
+                    </div>
+                    <div class="copy-feedback">✓ Copied!</div>
+                    <p class="info-warning">⚠️ Never share this key with anyone!</p>
+                </div>
+
+                <!-- Extended Public Key Card (Full Width) -->
+                <div class="info-box info-box-full" data-field="public_key">
+                    <div class="info-box-header">
+                        <h3>🔓 Extended Public Key</h3>
+                        <span class="copy-badge">Click to copy</span>
+                    </div>
+                    <div class="info-box-content">
+                        <code id="public-key-value">-</code>
+                    </div>
+                    <div class="copy-feedback">✓ Copied!</div>
+                </div>
+
+                <!-- Seed Phrase Card (Full Width) -->
+                <div class="info-box info-box-full" data-field="seed_phrase">
+                    <div class="info-box-header">
+                        <h3>📝 Seed Phrase (KEEP VERY SAFE!)</h3>
+                        <span class="copy-badge">Click to copy</span>
+                    </div>
+                    <div class="info-box-content seed-phrase">
+                        <p id="seed-phrase-value">-</p>
+                    </div>
+                    <div class="copy-feedback">✓ Copied!</div>
+                    <p class="info-warning">⚠️ This can be used to recover your wallet. Keep it secure!</p>
+                </div>
+            </div>
+            
+            <div class="button-group">
+                <button id="create-new-btn" class="btn btn-primary">Create Another Wallet</button>
+            </div>
+        </div>
+        
+        <div id="error-alert" class="alert alert-error hidden">
+            <strong>Error:</strong> <span id="error-text"></span>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const createBtn = document.getElementById('create-btn');
+    const resultContainer = document.getElementById('result-container');
+    const successAlert = document.getElementById('success-alert');
+    const errorAlert = document.getElementById('error-alert');
+    const errorText = document.getElementById('error-text');
+    const createNewBtn = document.getElementById('create-new-btn');
+
+    // Add click listeners to all info boxes
+    document.querySelectorAll('.info-box').forEach(box => {
+        box.addEventListener('click', () => copyToClipboard(box));
+    });
+
+    async function copyToClipboard(box) {
+        const field = box.dataset.field;
+        let text = '';
+
+        switch(field) {
+            case 'address':
+                text = document.getElementById('address-value').textContent;
+                break;
+            case 'private_key':
+                text = document.getElementById('private-key-value').textContent;
+                break;
+            case 'public_key':
+                text = document.getElementById('public-key-value').textContent;
+                break;
+            case 'seed_phrase':
+                text = document.getElementById('seed-phrase-value').textContent;
+                break;
+            case 'version':
+                text = document.getElementById('version-value').textContent;
+                break;
+        }
+
+        if (text && text !== '-') {
+            try {
+                await navigator.clipboard.writeText(text);
+                
+                // Show feedback
+                const feedback = box.querySelector('.copy-feedback');
+                feedback.style.display = 'block';
+                setTimeout(() => {
+                    feedback.style.display = 'none';
+                }, 2000);
+            } catch (err) {
+                console.error('Failed to copy:', err);
+            }
+        }
+    }
+
+    createBtn.addEventListener('click', async () => {
+        resultContainer.classList.add('hidden');
+        errorAlert.classList.add('hidden');
+        createBtn.disabled = true;
+        createBtn.textContent = 'Generating...';
+
+        try {
+            const response = await fetch('/api/create-wallet', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Populate the fields with parsed data
+                document.getElementById('address-value').textContent = data.data.address || '-';
+                document.getElementById('private-key-value').textContent = data.data.private_key || '-';
+                document.getElementById('public-key-value').textContent = data.data.public_key || '-';
+                document.getElementById('seed-phrase-value').textContent = data.data.seed_phrase || '-';
+                document.getElementById('version-value').textContent = data.data.version || '-';
+                
+                resultContainer.classList.remove('hidden');
+            } else {
+                showError(data.error || 'Failed to create wallet');
+            }
+        } catch (error) {
+            showError(error.message);
+        } finally {
+            createBtn.disabled = false;
+            createBtn.textContent = 'Generate New Wallet';
+        }
+    });
+
+    createNewBtn.addEventListener('click', () => {
+        resultContainer.classList.add('hidden');
+        createBtn.click();
+    });
+
+    function showError(message) {
+        errorText.textContent = message;
+        errorAlert.classList.remove('hidden');
+    }
+</script>
+{% endblock %}

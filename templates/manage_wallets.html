@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Wallets - KNOX{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <h1>Manage Wallets</h1>
+    
+    <div class="form-card">
+        <div id="wallets-list" class="wallets-table">
+            <div class="loading">Loading wallets...</div>
+        </div>
+        
+        <div id="error-alert" class="alert alert-error hidden">
+            <strong>Error:</strong> <span id="error-text"></span>
+        </div>
+
+        <div id="success-alert" class="alert alert-success hidden">
+            <strong>Success:</strong> <span id="success-text"></span>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function loadWallets() {
+        try {
+            const response = await fetch('/api/wallets');
+            const data = await response.json();
+            
+            if (data.success) {
+                const walletsList = document.getElementById('wallets-list');
+                const wallets = data.wallets || [];
+                const activeAddress = data.active_address;
+                
+                if (wallets.length === 0) {
+                    walletsList.innerHTML = '<p class="empty-state">No wallets found</p>';
+                    return;
+                }
+                
+                let html = '<table class="wallets-table-actual"><thead><tr><th>Address</th><th>Version</th><th>Status</th></tr></thead><tbody>';
+                
+                for (const wallet of wallets) {
+                    // Skip wallets with empty addresses
+                    if (!wallet.address || wallet.address.trim() === '') {
+                        continue;
+                    }
+                    
+                    const isActive = wallet.is_active || wallet.address === activeAddress;
+                    const statusBadge = isActive ? '<span class="badge badge-active">🟢 Active</span>' : '<span class="badge badge-inactive" onclick="setActiveWallet(event, \''+wallet.address+'\')" style="cursor: pointer;">⚫ Click to set as active</span>';
+                    
+                    html += `
+                        <tr>
+                            <td class="address-cell"><code>${wallet.address}</code></td>
+                            <td class="version-cell">v${wallet.version}</td>
+                            <td class="status-cell">${statusBadge}</td>
+                        </tr>
+                    `;
+                }
+                
+                html += '</tbody></table>';
+                walletsList.innerHTML = html;
+            } else {
+                showError(data.error || 'Failed to load wallets');
+            }
+        } catch (error) {
+            showError(error.message);
+        }
+    }
+    
+    async function setActiveWallet(event, address) {
+        try {
+            hideAlerts();
+            const response = await fetch('/api/set-active-wallet', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ address: address })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showSuccess(`Wallet ${address.substring(0, 10)}... set as active`);
+                // Reload page after a short delay
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showError(data.error || 'Failed to set active wallet');
+            }
+        } catch (error) {
+            showError(error.message);
+        }
+    }
+    
+    function showError(message) {
+        document.getElementById('error-text').textContent = message;
+        document.getElementById('error-alert').classList.remove('hidden');
+    }
+
+    function showSuccess(message) {
+        document.getElementById('success-text').textContent = message;
+        document.getElementById('success-alert').classList.remove('hidden');
+    }
+
+    function hideAlerts() {
+        document.getElementById('error-alert').classList.add('hidden');
+        document.getElementById('success-alert').classList.add('hidden');
+    }
+    
+    // Load wallets on page load
+    loadWallets();
+</script>
+{% endblock %}

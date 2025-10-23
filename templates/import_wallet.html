@@ -1,0 +1,267 @@
+{% extends "base.html" %}
+
+{% block title %}Import Wallet - KNOX{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <h1>Import Wallet</h1>
+    
+    <div class="form-card">
+        <p class="form-info">Import an existing wallet using a seed phrase or key file. The wallet must be created with nockchain-wallet.</p>
+        
+        <form id="import-form">
+            <div class="form-group">
+                <label for="import-method">Import Method:</label>
+                <select id="import-method" class="form-control" required>
+                    <option value="">-- Select Method --</option>
+                    <option value="seed">Seed Phrase</option>
+                    <option value="extended-key">Extended Private Key</option>
+                </select>
+            </div>
+            
+            <!-- Seed Phrase Import -->
+            <div id="seed-container" class="form-group hidden">
+                <label for="seed-phrase">Seed Phrase:</label>
+                <textarea id="seed-phrase" class="form-control" placeholder="Enter your seed phrase (words separated by spaces)" rows="4"></textarea>
+                <small class="form-text">Example: unit antenna vast dwarf resemble tag casino forum face also nothing found...</small>
+                
+                <label for="seed-version" style="margin-top: 1rem;">Seed Phrase Version:</label>
+                <select id="seed-version" class="form-control" required>
+                    <option value="">-- Select Version --</option>
+                    <option value="0" selected>Version 0</option>
+                    <option value="1">Version 1</option>
+                </select>
+                <small class="form-text">The version was displayed when you created your wallet. If unsure, it is probably Version 1.</small>
+            </div>
+
+            <!-- Extended Private Key Import -->
+            <div id="extended-key-container" class="form-group hidden">
+                <label for="extended-key">Extended Private Key:</label>
+                <textarea id="extended-key" class="form-control" placeholder="Enter your extended private key" rows="4"></textarea>
+                <small class="form-text">Paste your zprv key here</small>
+                
+                <label for="extended-key-version" style="margin-top: 1rem;">Key Version:</label>
+                <select id="extended-key-version" class="form-control" required>
+                    <option value="">-- Select Version --</option>
+                    <option value="0" selected>Version 0</option>
+                    <option value="1">Version 1</option>
+                </select>
+            </div>
+            
+            <button type="submit" class="btn btn-primary">Import Wallet</button>
+        </form>
+        
+        <div id="success-alert" class="alert alert-success hidden">
+            ✓ Wallet imported successfully! Set as active wallet.
+        </div>
+        
+        <div id="wallet-info-container" class="hidden">
+            <div class="wallet-info-grid">
+                <!-- Wallet Address Card -->
+                <div class="info-box info-box-full" data-field="address">
+                    <div class="info-box-header">
+                        <h3>📍 Wallet Address</h3>
+                        <span class="copy-badge">Click to copy</span>
+                    </div>
+                    <div class="info-box-content">
+                        <code id="address-value">-</code>
+                    </div>
+                    <div class="copy-feedback">✓ Copied!</div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="error-alert" class="alert alert-error hidden">
+            <strong>Error:</strong> <span id="error-text"></span>
+        </div>
+
+        <div id="loading-spinner" class="hidden">
+            <div class="spinner"></div>
+            <p>Importing wallet...</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const importForm = document.getElementById('import-form');
+    const importMethod = document.getElementById('import-method');
+    const seedContainer = document.getElementById('seed-container');
+    const extendedKeyContainer = document.getElementById('extended-key-container');
+    
+    const seedPhrase = document.getElementById('seed-phrase');
+    const seedVersion = document.getElementById('seed-version');
+    const extendedKey = document.getElementById('extended-key');
+    const extendedKeyVersion = document.getElementById('extended-key-version');
+    
+    const successAlert = document.getElementById('success-alert');
+    const errorAlert = document.getElementById('error-alert');
+    const errorText = document.getElementById('error-text');
+    const resultText = document.getElementById('result-text');
+    const loadingSpinner = document.getElementById('loading-spinner');
+
+    importMethod.addEventListener('change', (e) => {
+        // Hide all containers
+        seedContainer.classList.add('hidden');
+        extendedKeyContainer.classList.add('hidden');
+
+        // Reset requirements
+        seedPhrase.required = false;
+        seedVersion.required = false;
+        extendedKey.required = false;
+        extendedKeyVersion.required = false;
+
+        // Show selected container
+        if (e.target.value === 'seed') {
+            seedContainer.classList.remove('hidden');
+            seedPhrase.required = true;
+            seedVersion.required = true;
+        } else if (e.target.value === 'extended-key') {
+            extendedKeyContainer.classList.remove('hidden');
+            extendedKey.required = true;
+            extendedKeyVersion.required = true;
+        }
+    });
+
+    importForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        successAlert.classList.add('hidden');
+        errorAlert.classList.add('hidden');
+        loadingSpinner.classList.remove('hidden');
+
+        const method = importMethod.value;
+        const payload = {};
+
+        if (method === 'seed') {
+            const phrase = seedPhrase.value.trim();
+            const version = String(seedVersion.value);  // Explicitly convert to string
+
+            if (!phrase) {
+                showError('Please enter a seed phrase');
+                loadingSpinner.classList.add('hidden');
+                return;
+            }
+
+            if (!version || version === '') {
+                showError('Please select a seed phrase version');
+                loadingSpinner.classList.add('hidden');
+                return;
+            }
+
+            payload.seed_phrase = phrase;
+            payload.version = version;
+            
+            // Debug logging
+            console.log('Seed phrase import:', { phrase, version, payload });
+
+        } else if (method === 'extended-key') {
+            const key = extendedKey.value.trim();
+            const version = String(extendedKeyVersion.value);  // Explicitly convert to string
+
+            if (!key) {
+                showError('Please enter an extended key');
+                loadingSpinner.classList.add('hidden');
+                return;
+            }
+
+            if (!version || version === '') {
+                showError('Please select a key version');
+                loadingSpinner.classList.add('hidden');
+                return;
+            }
+
+            // For extended keys, we'll treat them as key imports
+            payload.seed_phrase = key;
+            payload.version = version;
+            
+            // Debug logging
+            console.log('Extended key import:', { key, version, payload });
+
+        } else {
+            showError('Please select an import method');
+            loadingSpinner.classList.add('hidden');
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/import-wallet', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                successAlert.classList.remove('hidden');
+                
+                // Debug logging
+                console.log('Import response:', data);
+                
+                // Populate the info boxes
+                document.getElementById('address-value').textContent = data.address || '-';
+                
+                // Show the wallet info container
+                const walletInfoContainer = document.getElementById('wallet-info-container');
+                walletInfoContainer.classList.remove('hidden');
+                
+                // Add click-to-copy functionality
+                document.querySelectorAll('#wallet-info-container .info-box').forEach(box => {
+                    box.addEventListener('click', () => copyToClipboard(box));
+                });
+                
+                importForm.reset();
+                seedContainer.classList.add('hidden');
+                extendedKeyContainer.classList.add('hidden');
+            } else {
+                showError(data.error || 'Failed to import wallet');
+            }
+        } catch (error) {
+            showError(error.message);
+        } finally {
+            loadingSpinner.classList.add('hidden');
+        }
+    });
+
+    async function copyToClipboard(box) {
+        const field = box.dataset.field;
+        let text = '';
+
+        switch(field) {
+            case 'address':
+                text = document.getElementById('address-value').textContent;
+                break;
+        }
+
+        if (text && text !== '-') {
+            try {
+                await navigator.clipboard.writeText(text);
+                
+                // Show feedback
+                const feedback = box.querySelector('.copy-feedback');
+                feedback.style.display = 'block';
+                setTimeout(() => {
+                    feedback.style.display = 'none';
+                }, 2000);
+            } catch (err) {
+                console.error('Failed to copy:', err);
+            }
+        }
+    }
+
+    function showError(message) {
+        errorText.textContent = message;
+        errorAlert.classList.remove('hidden');
+    }
+
+    function readFile(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.onerror = reject;
+            reader.readAsText(file);
+        });
+    }
+</script>
+{% endblock %}

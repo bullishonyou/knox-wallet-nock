@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}Send Transaction - KNOX{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <h1>Send Transaction</h1>
+    
+    <div class="form-card">
+        <p class="form-info">Send NOCK to another address. Amounts are in NOCK (1 NOCK = 65536 nicks).</p>
+        
+        <form id="send-form">
+            <div class="form-group">
+                <label for="sender">From Address:</label>
+                <select id="sender" class="form-control" required>
+                    <option value="">-- Select sender address --</option>
+                    {% for addr in addresses %}
+                    <option value="{{ addr }}">{{ addr }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="recipient">To Address:</label>
+                <input type="text" id="recipient" class="form-control" placeholder="Recipient's public address" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="amount">Amount (NOCK):</label>
+                <input type="number" id="amount" class="form-control" placeholder="0.00000000" step="0.00000001" min="0" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="fee">Fee (NOCK):</label>
+                <input type="number" id="fee" class="form-control" placeholder="0.00001" step="0.00000001" min="0" value="0.00001" required>
+            </div>
+            
+            <div class="summary-box">
+                <h3>Transaction Summary</h3>
+                <div class="summary-item">
+                    <span>Amount:</span>
+                    <span id="summary-amount">0 NOCK</span>
+                </div>
+                <div class="summary-item">
+                    <span>Fee:</span>
+                    <span id="summary-fee">0 NOCK</span>
+                </div>
+                <div class="summary-item total">
+                    <span>Total:</span>
+                    <span id="summary-total">0 NOCK</span>
+                </div>
+            </div>
+            
+            <button type="submit" class="btn btn-primary btn-large">Send Transaction</button>
+        </form>
+        
+        <div id="success-alert" class="alert alert-success hidden">
+            ✓ Transaction sent successfully!
+            <div id="tx-result" class="tx-result"></div>
+        </div>
+        
+        <div id="error-alert" class="alert alert-error hidden">
+            <strong>Error:</strong> <span id="error-text"></span>
+        </div>
+
+        <div id="loading-spinner" class="hidden">
+            <div class="spinner"></div>
+            <p>Processing transaction...</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const sendForm = document.getElementById('send-form');
+    const amountInput = document.getElementById('amount');
+    const feeInput = document.getElementById('fee');
+    const summaryAmount = document.getElementById('summary-amount');
+    const summaryFee = document.getElementById('summary-fee');
+    const summaryTotal = document.getElementById('summary-total');
+    const successAlert = document.getElementById('success-alert');
+    const errorAlert = document.getElementById('error-alert');
+    const errorText = document.getElementById('error-text');
+    const loadingSpinner = document.getElementById('loading-spinner');
+    const txResult = document.getElementById('tx-result');
+
+    // Update summary on input change
+    amountInput.addEventListener('input', updateSummary);
+    feeInput.addEventListener('input', updateSummary);
+
+    function updateSummary() {
+        const amount = parseFloat(amountInput.value) || 0;
+        const fee = parseFloat(feeInput.value) || 0;
+        const total = amount + fee;
+
+        summaryAmount.textContent = amount.toFixed(8) + ' NOCK';
+        summaryFee.textContent = fee.toFixed(8) + ' NOCK';
+        summaryTotal.textContent = total.toFixed(8) + ' NOCK';
+    }
+
+    sendForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        successAlert.classList.add('hidden');
+        errorAlert.classList.add('hidden');
+        loadingSpinner.classList.remove('hidden');
+
+        const sender = document.getElementById('sender').value;
+        const recipient = document.getElementById('recipient').value;
+        const amount = parseFloat(amountInput.value);
+        const fee = parseFloat(feeInput.value);
+
+        if (!sender || !recipient || amount <= 0 || fee < 0) {
+            showError('Please fill in all fields correctly');
+            loadingSpinner.classList.add('hidden');
+            return;
+        }
+
+        if (recipient.length < 10) {
+            showError('Invalid recipient address');
+            loadingSpinner.classList.add('hidden');
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/send-transaction', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    sender: sender,
+                    recipient: recipient,
+                    amount: amount,
+                    fee: fee
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                txResult.innerHTML = '<pre>' + JSON.stringify(data.data, null, 2) + '</pre>';
+                successAlert.classList.remove('hidden');
+                sendForm.reset();
+                updateSummary();
+            } else {
+                showError(data.error || 'Failed to send transaction');
+            }
+        } catch (error) {
+            showError(error.message);
+        } finally {
+            loadingSpinner.classList.add('hidden');
+        }
+    });
+
+    function showError(message) {
+        errorText.textContent = message;
+        errorAlert.classList.remove('hidden');
+    }
+
+    // Initialize summary
+    updateSummary();
+</script>
+{% endblock %}
