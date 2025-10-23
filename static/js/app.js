@@ -31,11 +31,37 @@ function formatCurrency(value, decimals = 8) {
 
 /**
  * Copy text to clipboard
- * @param {string} text - Text to copy
+ * @param {string|HTMLElement} textOrElement - Text to copy or DOM element
  * @returns {Promise}
  */
-function copyToClipboard(text) {
-    return navigator.clipboard.writeText(text);
+function copyToClipboard(textOrElement) {
+    let text = textOrElement;
+    let element = null;
+    
+    // If it's an element, extract the address text
+    if (textOrElement instanceof HTMLElement) {
+        element = textOrElement;
+        const addressSpan = element.querySelector('.donation-address');
+        if (addressSpan) {
+            text = addressSpan.textContent.trim();
+        } else {
+            // Fallback for other elements with data attribute
+            text = element.getAttribute('data-copy') || element.textContent;
+        }
+    }
+    
+    return navigator.clipboard.writeText(text).then(() => {
+        // Visual feedback: add 'copied' class
+        if (element) {
+            element.classList.add('copied');
+            // Remove class after 2 seconds
+            setTimeout(() => {
+                element.classList.remove('copied');
+            }, 2000);
+        }
+    }).catch(err => {
+        console.error('Failed to copy:', err);
+    });
 }
 
 /**

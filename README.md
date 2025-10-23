@@ -1,8 +1,11 @@
 # KNOX - Nockchain Web Wallet
 
-🔐 **A modern, open-source, easy-to-use web wallet for Nockchain**
+🔐 **An open-source GUI web wallet for Nockchain**
 
 KNOX is a simple web-based wallet application that makes it easy to create wallets, manage keys, check balances, and send transactions on the Nockchain network—all from your browser.
+
+**DONATIONS**: (v0)3hxt3ijxGzbjDCzvQmWEhQLorg8NQQafd3no1JLrtFVTnvbukfBneZNP6AdjDZdiuRtPvYQc62gzwEB2EJ4WzF2yQuFpbrPRU2fmxW8VJs2cejWR2s1bhGTLXaq9aJ4zJ2a6
+(v1) 5pL9VpymCfL5f5SCSkqDpHXY5C3QSD8Zm4vnPiZYJz4zUU1zZCU8KAg
 
 ---
 
@@ -14,7 +17,7 @@ Before you begin, you need:
 
 1. **Python 3.9 or higher** - [Download here](https://www.python.org/downloads/)
 2. **Nockchain CLI tools** - Follow the [Nockchain setup guide](https://github.com/zorp-corp/nockchain)
-3. **A running Nockchain node** - Start this before using KNOX
+3. **A running Nockchain node** - Start this before using KNOX to show updated balances and send transactions.
 
 ### Installation Steps
 
@@ -108,6 +111,8 @@ You should see:
 
 ### 4. Send a Transaction
 
+**Note:** Only available if you are running a synced node.
+
 1. Go to **Send** in the menu
 2. Select your wallet (sender)
 3. Enter the recipient's address
@@ -121,7 +126,7 @@ You should see:
 
 1. Go to **Manage Wallets** in the menu
 2. See all your wallets (address, version, active status)
-3. Click on an inactive wallet to make it your active wallet
+3. Click on an inactive wallet to set it as active wallet
 4. Your dashboard will update automatically
 
 ---
@@ -191,17 +196,21 @@ nockchain-wallet --version
 
 Your Nockchain node is not running or not reachable.
 
-**Solution:** Start your Nockchain node:
+**Solution:** Start your Nockchain node in your /nockchain folder:
 
 ```bash
-nockchain-node
+bash ./scripts/run_nockchain_node.sh
 ```
 
 ### "Balance shows zero but I have coins"
 
-You're checking a v1 address (balance queries only work for v0 addresses).
+Your node is probably not synced.
 
-**Solution:** Switch to a v0 wallet in **Manage Wallets**
+**Solution:** Wait for your node to be synced with the latest block. You can find a .jam file [here](https://syncflash.site/) and run:
+
+```bash
+  nockchain --state-jam <latest-jam-downloaded>
+```
 
 ### "Transaction failed"
 
@@ -219,7 +228,7 @@ Several possible reasons:
 KNOX stores wallet data through the `nockchain-wallet` CLI. Your keys are stored in:
 
 ```
-~/.nockchain-wallet/
+~/nockchain/
 ```
 
 **Backup Important:** Always backup this folder to recover your wallets!
@@ -230,7 +239,6 @@ KNOX stores wallet data through the `nockchain-wallet` CLI. Your keys are stored
 
 ✅ **DO:**
 - Save your seed phrase and private key offline
-- Use a strong password if your node requires one
 - Run the node locally for maximum security
 - Keep your Python environment up to date
 
@@ -259,21 +267,6 @@ For developers integrating with KNOX:
 
 ---
 
-## 🚀 Running in Production
-
-For production use:
-
-1. Set `FLASK_ENV=production`
-2. Use a production WSGI server:
-   ```bash
-   pip install gunicorn
-   gunicorn -w 4 app.py
-   ```
-3. Put behind HTTPS reverse proxy (Nginx, Apache)
-4. Use strong `SECRET_KEY`
-5. Run on a trusted server only
-
----
 
 ## 🤝 Contributing
 
@@ -290,9 +283,9 @@ We welcome contributions!
 
 ## 📞 Support & Resources
 
+- **KNOX Community**: [Telegram](https://t.me/knoxcommunity)
 - **Nockchain Docs**: [github.com/zorp-corp/nockchain](https://github.com/zorp-corp/nockchain)
-- **Issues**: [GitHub Issues](https://github.com/zorp-corp/knox-wallet-nock/issues)
-- **Nockchain Community**: [Official channels](https://github.com/zorp-corp)
+- **Issues**: [GitHub Issues](https://github.com/bullishonyou/knox-wallet-nock/issues)
 
 ---
 

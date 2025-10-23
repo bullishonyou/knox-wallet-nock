@@ -16,6 +16,7 @@
                 <li><a href="/" class="nav-link">Dashboard</a></li>
                 <li><a href="/create-wallet" class="nav-link">Create Wallet</a></li>
                 <li><a href="/import-wallet" class="nav-link">Import Wallet</a></li>
+                <li><a href="/manage-wallets" class="nav-link">Manage Wallets</a></li>
                 <li><a href="/balance" class="nav-link">Balance</a></li>
                 <li><a href="/send" class="nav-link">Send</a></li>
             </ul>
@@ -33,7 +34,28 @@
     </main>
 
     <footer class="footer">
-        <p>KNOX - Open Source Nockchain Wallet | <a href="https://github.com/zorp-corp/nockchain" target="_blank">Nockchain</a></p>
+        <div class="footer-content">
+            <div class="footer-main">
+                <p>KNOX - Open Source Nockchain Wallet | <a href="https://github.com/zorp-corp/nockchain" target="_blank">Nockchain</a></p>
+            </div>
+            
+            <div class="footer-donations">
+                <h4>💝 Support Development</h4>
+                <p>Like KNOX? Consider donating:</p>
+                <div class="donation-addresses">
+                    <div class="donation-box" onclick="copyToClipboard(this)">
+                        <span class="donation-label">(v0)</span>
+                        <span class="donation-address">3hxt3ijxGzbjDCzvQmWEhQLorg8NQQafd3no1JLrtFVTnvbukfBneZNP6AdjDZdiuRtPvYQc62gzwEB2EJ4WzF2yQuFpbrPRU2fmxW8VJs2cejWR2s1bhGTLXaq9aJ4zJ2a6</span>
+                        <span class="copy-hint">click to copy</span>
+                    </div>
+                    <div class="donation-box" onclick="copyToClipboard(this)">
+                        <span class="donation-label">(v1)</span>
+                        <span class="donation-address">5pL9VpymCfL5f5SCSkqDpHXY5C3QSD8Zm4vnPiZYJz4zUU1zZCU8KAg</span>
+                        <span class="copy-hint">click to copy</span>
+                    </div>
+                </div>
+            </div>
+        </div>
     </footer>
 
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
