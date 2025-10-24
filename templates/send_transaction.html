@@ -7,7 +7,17 @@
     <h1>Send Transaction</h1>
     
     <div class="form-card">
-        <p class="form-info">Send NOCK to another address. Amounts are in NOCK (1 NOCK = 65536 nicks).</p>
+        <!-- Active Wallet Balance Card -->
+        <div class="balance-card">
+            <div class="balance-header">
+                <h3>Your Balance</h3>
+                <span class="balance-status" id="balance-status">Loading...</span>
+            </div>
+            <div class="balance-display">
+                <div class="balance-amount" id="balance-amount">0</div>
+                <div class="balance-unit">NOCK</div>
+            </div>
+        </div>
         
         <form id="send-form">
             <div class="form-group">
@@ -87,6 +97,24 @@
     const loadingSpinner = document.getElementById('loading-spinner');
     const txResult = document.getElementById('tx-result');
     const submitBtn = document.getElementById('submit-btn');
+    const balanceAmount = document.getElementById('balance-amount');
+    const balanceStatus = document.getElementById('balance-status');
+
+    // Check localStorage for cached active wallet first
+    function getCachedActiveWallet() {
+        const cachedAddress = localStorage.getItem('activeAddress');
+        const cachedVersion = localStorage.getItem('activeVersion');
+        const cachedBalance = localStorage.getItem('activeBalance');
+        
+        if (cachedAddress) {
+            return {
+                address: cachedAddress,
+                version: cachedVersion || '1',
+                balance_nock: cachedBalance || '0'
+            };
+        }
+        return null;
+    }
 
     // Load active address from localStorage on page load
     function loadActiveAddress() {
@@ -128,6 +156,57 @@
         } catch (error) {
             showError('Failed to load active address: ' + error.message);
             submitBtn.disabled = true;
+        }
+    }
+
+    // Display balance
+    function displayBalance(balance) {
+        const balanceValue = parseFloat(balance || 0).toFixed(8);
+        balanceAmount.textContent = balanceValue;
+        balanceStatus.textContent = '✓ Up to date';
+    }
+
+    // Load balance for active address
+    async function loadBalance() {
+        try {
+            // First, try to use cached data from localStorage
+            const cached = getCachedActiveWallet();
+            if (cached && cached.address) {
+                // Display cached balance immediately
+                displayBalance(cached.balance_nock);
+                
+                // In background, fetch fresh data to update cache
+                try {
+                    const response = await fetch('/api/active-wallet');
+                    const data = await response.json();
+                    if (data.success && data.balance_nock !== undefined) {
+                        // Update cache with fresh balance
+                        localStorage.setItem('activeBalance', data.balance_nock);
+                        // Update UI with fresh balance
+                        displayBalance(data.balance_nock);
+                    }
+                } catch (error) {
+                    console.error('Background refresh failed (using cache):', error);
+                    // Keep showing cached balance
+                }
+            } else {
+                // No cache, fetch from API
+                const response = await fetch('/api/active-wallet');
+                const data = await response.json();
+                
+                if (data.success && data.address) {
+                    // Cache the response
+                    localStorage.setItem('activeBalance', data.balance_nock || 0);
+                    displayBalance(data.balance_nock);
+                } else {
+                    balanceAmount.textContent = '0';
+                    balanceStatus.textContent = '⚠ Unable to fetch';
+                }
+            }
+        } catch (error) {
+            console.error('Error loading balance:', error);
+            balanceAmount.textContent = '0';
+            balanceStatus.textContent = '❌ Error';
         }
     }
 
@@ -186,8 +265,9 @@
                 txResult.innerHTML = '<pre>' + JSON.stringify(data.data, null, 2) + '</pre>';
                 successAlert.classList.remove('hidden');
                 sendForm.reset();
-                // Reload active address
+                // Reload active address and balance
                 loadActiveAddress();
+                loadBalance();
                 updateSummary();
             } else {
                 showError(data.error || 'Failed to send transaction');
@@ -204,8 +284,9 @@
         errorAlert.classList.remove('hidden');
     }
 
-    // Load active address on page load
+    // Load active address and balance on page load
     loadActiveAddress();
+    loadBalance();
     
     // Initialize summary
     updateSummary();

@@ -402,15 +402,39 @@ main {
     box-shadow: 0 8px 32px rgba(99, 102, 241, 0.3);
 }
 
+.balance-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    color: white;
+}
+
+.balance-header h3 {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 500;
+}
+
+.balance-status {
+    font-size: 0.9rem;
+    opacity: 0.9;
+    font-weight: 500;
+}
+
 .balance-display {
     text-align: center;
     color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
 }
 
 .balance-amount {
     font-size: 3rem;
     font-weight: bold;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0;
 }
 
 .balance-unit {
