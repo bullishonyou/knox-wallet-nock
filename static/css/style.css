@@ -155,6 +155,38 @@ main {
     color: var(--text-secondary);
 }
 
+/* From Address Display (Read-only) */
+.from-address-display {
+    background-color: var(--background);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.from-address-display code {
+    display: block;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    word-break: break-all;
+    color: var(--primary-light);
+    letter-spacing: 0.5px;
+    line-height: 1.4;
+}
+
+.from-address-display code:hover {
+    color: var(--primary-color);
+    cursor: pointer;
+}
+
+.form-hint {
+    display: block;
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
 /* Buttons */
 .btn {
     padding: 0.75rem 1.5rem;
