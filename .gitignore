@@ -65,3 +65,4 @@ SETUP_COMPLETE.txt
 balances/
 notes-*.csv
 *.log
+txs/*.txt
