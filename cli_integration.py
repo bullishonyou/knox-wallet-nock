@@ -51,22 +51,28 @@ def parse_keygen_output(output: str) -> Dict[str, str]:
     # Split by lines
     lines = clean_output.split('\n')
 
-    current_section = None
-    for i, line in enumerate(lines):
-        line = line.strip()
+    i = 0
+    while i < len(lines):
+        line = lines[i].strip()
 
-        # Skip empty lines
-        if not line:
+        # Skip empty lines and log lines
+        if not line or line.startswith("I ") or line.startswith("["):
+            i += 1
             continue
 
-        # Check for section headers
-        if "Address (pkh address)" in line:
-            current_section = "address"
-            if i + 1 < len(lines):
-                result["address"] = lines[i + 1].strip()
-        elif "Extended Private Key" in line:
-            current_section = "private_key"
-            # Get the next line(s) until we hit an empty line
+        # Parse Address - look for standalone "Address" header
+        if line == "Address":
+            # Next non-empty line should be the address
+            j = i + 1
+            while j < len(lines) and not lines[j].strip():
+                j += 1
+            if j < len(lines):
+                result["address"] = lines[j].strip()
+            i = j
+            continue
+
+        # Parse Extended Private Key
+        if "Extended Private Key" in line:
             j = i + 1
             private_key_lines = []
             while j < len(lines):
@@ -76,8 +82,11 @@ def parse_keygen_output(output: str) -> Dict[str, str]:
                 private_key_lines.append(next_line)
                 j += 1
             result["private_key"] = "".join(private_key_lines)
-        elif "Extended Public Key" in line:
-            current_section = "public_key"
+            i = j
+            continue
+
+        # Parse Extended Public Key
+        if "Extended Public Key" in line:
             j = i + 1
             public_key_lines = []
             while j < len(lines):
@@ -87,8 +96,11 @@ def parse_keygen_output(output: str) -> Dict[str, str]:
                 public_key_lines.append(next_line)
                 j += 1
             result["public_key"] = "".join(public_key_lines)
-        elif "Seed Phrase" in line:
-            current_section = "seed_phrase"
+            i = j
+            continue
+
+        # Parse Seed Phrase
+        if "Seed Phrase" in line:
             j = i + 1
             seed_lines = []
             while j < len(lines):
@@ -100,10 +112,23 @@ def parse_keygen_output(output: str) -> Dict[str, str]:
                 seed_lines.append(next_line)
                 j += 1
             result["seed_phrase"] = " ".join(seed_lines)
-        elif "Version" in line and "keep this" in line:
-            current_section = "version"
-            if i + 1 < len(lines):
-                result["version"] = lines[i + 1].strip()
+            i = j
+            continue
+
+        # Parse Version (look for "Version" with following line having the number)
+        if line.startswith("Version"):
+            j = i + 1
+            while j < len(lines) and not lines[j].strip():
+                j += 1
+            if j < len(lines):
+                version_line = lines[j].strip()
+                # Version could be on the same line or next line
+                if version_line and version_line[0].isdigit():
+                    result["version"] = version_line
+            i = j
+            continue
+
+        i += 1
 
     return result
 
