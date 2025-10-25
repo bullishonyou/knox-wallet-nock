@@ -136,21 +136,24 @@ def parse_keygen_output(output: str) -> Dict[str, str]:
 def parse_import_output(output: str) -> Dict[str, str]:
     """
     Parse nockchain-wallet import output and extract wallet information.
+    
+    New format (after import):
+    Master Key (Imported)
+    - Address: [ADDRESS]
+    - Version: [VERSION]
 
     Args:
         output: Raw output from import-keys command
 
     Returns:
-        Dictionary with wallet information
+        Dictionary with wallet information (address, version)
     """
     # Strip ANSI codes
     clean_output = strip_ansi_codes(output)
 
     # Initialize result dictionary
     result = {
-        "seed_phrase": "",
-        "extended_public_key": "",
-        "extended_private_key": "",
+        "address": "",
         "version": "",
         "raw_output": clean_output
     }
@@ -162,84 +165,27 @@ def parse_import_output(output: str) -> Dict[str, str]:
     while i < len(lines):
         line = lines[i].strip()
 
-        # Skip empty lines
-        if not line:
+        # Skip empty lines and log lines
+        if not line or line.startswith("I ") or line.startswith("["):
             i += 1
             continue
 
-        # Extract Seed Phrase
-        if line.startswith("- Seed Phrase:"):
-            # Get the part after the colon
-            seed_start = line.find("'")
-            if seed_start != -1:
-                # Look for closing quote
-                seed_end = line.find("'", seed_start + 1)
-                if seed_end != -1:
-                    # Found closing quote on same line
-                    result["seed_phrase"] = line[seed_start+1:seed_end]
-                else:
-                    # Closing quote is on a later line, collect all lines until we find it
-                    seed_parts = [line[seed_start+1:]]
-                    j = i + 1
-                    while j < len(lines):
-                        next_line = lines[j].strip()
-                        if "'" in next_line:
-                            closing_quote_pos = next_line.find("'")
-                            seed_parts.append(next_line[:closing_quote_pos])
-                            break
-                        else:
-                            seed_parts.append(next_line)
-                        j += 1
-                    result["seed_phrase"] = " ".join(seed_parts)
+        # Skip header lines
+        if "Master Key (Imported)" in line or "Master Key" in line:
+            i += 1
+            continue
 
-        # Extract Extended Public Key
-        elif line.startswith("- Extended Public Key:"):
-            key_part = line.split("- Extended Public Key:", 1)[1].strip()
-            if key_part and key_part.startswith("zpub"):
-                # Key is on same line
-                result["extended_public_key"] = key_part
-            else:
-                # Key is on next line(s)
-                j = i + 1
-                key_lines = []
-                while j < len(lines):
-                    next_line = lines[j].strip()
-                    if not next_line or next_line.startswith("- Extended Private") or next_line.startswith("- Version"):
-                        break
-                    if next_line.startswith("zpub"):
-                        key_lines.append(next_line)
-                    elif next_line and all(c in "0123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz" for c in next_line):
-                        # Looks like part of a key
-                        key_lines.append(next_line)
-                    j += 1
-                result["extended_public_key"] = "".join(key_lines)
-
-        # Extract Extended Private Key
-        elif line.startswith("- Extended Private Key:"):
-            key_part = line.split("- Extended Private Key:", 1)[1].strip()
-            if key_part and key_part.startswith("zprv"):
-                result["extended_private_key"] = key_part
-            else:
-                # Key is on next line(s)
-                j = i + 1
-                key_lines = []
-                while j < len(lines):
-                    next_line = lines[j].strip()
-                    if not next_line or next_line.startswith("- Version"):
-                        break
-                    if next_line.startswith("zprv"):
-                        key_lines.append(next_line)
-                    elif next_line and all(c in "0123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz" for c in next_line):
-                        # Looks like part of a key
-                        key_lines.append(next_line)
-                    j += 1
-                result["extended_private_key"] = "".join(key_lines)
+        # Extract Address
+        if line.startswith("- Address:"):
+            address = line.split("- Address:", 1)[1].strip()
+            if address:
+                result["address"] = address
 
         # Extract Version
         elif line.startswith("- Version:"):
-            version_part = line.split("- Version:", 1)[1].strip()
-            if version_part and version_part.isdigit():
-                result["version"] = version_part
+            version = line.split("- Version:", 1)[1].strip()
+            if version and version.isdigit():
+                result["version"] = version
 
         i += 1
 
@@ -422,6 +368,78 @@ def parse_list_master_addresses(output: str) -> Dict[str, Any]:
         
         i += 1
     
+    return result
+
+
+def parse_list_active_addresses(output: str) -> Dict[str, str]:
+    """
+    Parse nockchain-wallet list-active-addresses output to get the active address.
+    
+    Format:
+    Addresses -- Signing
+    - Address: [ADDRESS]
+    - Version: [VERSION]
+    [separator line]
+    
+    Addresses -- Watch only
+    No pubkeys found
+
+    Args:
+        output: Raw output from list-active-addresses command
+
+    Returns:
+        Dictionary with address, version, and type (Signing or Watch only)
+    """
+    # Strip ANSI codes
+    clean_output = strip_ansi_codes(output)
+
+    # Initialize result dictionary
+    result = {
+        "address": "",
+        "version": "",
+        "type": "",
+        "raw_output": clean_output
+    }
+
+    # Split by lines
+    lines = clean_output.split('\n')
+
+    current_type = ""
+    i = 0
+    while i < len(lines):
+        line = lines[i].strip()
+
+        # Skip empty lines and log lines
+        if not line or line.startswith("I ") or line.startswith("[") or line.startswith("―"):
+            i += 1
+            continue
+
+        # Check for section headers
+        if "Addresses -- Signing" in line:
+            current_type = "Signing"
+            i += 1
+            continue
+
+        if "Addresses -- Watch only" in line:
+            current_type = "Watch only"
+            i += 1
+            continue
+
+        # Extract Address (only from Signing section)
+        if current_type == "Signing" and line.startswith("- Address:"):
+            address = line.split("- Address:", 1)[1].strip()
+            if address:
+                result["address"] = address
+                result["type"] = "Signing"
+
+        # Extract Version (only from Signing section)
+        elif current_type == "Signing" and line.startswith("- Version:"):
+            version = line.split("- Version:", 1)[1].strip()
+            if version and version.isdigit():
+                result["version"] = version
+
+        i += 1
+
     return result
 
 
@@ -698,6 +716,7 @@ class NockchainWalletCLI:
             "success": False,
             "message": "",
             "address": "",
+            "version": "",
             "data": {}
         }
 
@@ -718,9 +737,11 @@ class NockchainWalletCLI:
                 "--version", version
             )
             
-            # Parse the import output
+            # Parse the import output to get address and version
             parsed_data = parse_import_output(output)
             import_result["data"] = parsed_data
+            import_result["address"] = parsed_data.get("address", "")
+            import_result["version"] = parsed_data.get("version", "")
             import_result["message"] = "Wallet imported successfully!"
             
         elif key_file:
@@ -735,17 +756,21 @@ class NockchainWalletCLI:
             import_result["data"] = parsed_data
             import_result["message"] = "Wallet imported successfully!"
             
+            # For key file imports, the CLI automatically sets it as active
+            # So we call list-active-addresses to get the address that was just set
+            try:
+                active_addresses_output = self._run_command("list-active-addresses")
+                active_data = parse_list_active_addresses(active_addresses_output)
+                if active_data.get("address"):
+                    import_result["address"] = active_data["address"]
+                    import_result["version"] = active_data.get("version", "")
+            except Exception as e:
+                # If we can't get active addresses, use parsed data
+                import_result["address"] = parsed_data.get("address", "")
+                import_result["version"] = parsed_data.get("version", "")
+            
         else:
             raise ValueError("Either seed_phrase or key_file must be provided")
-
-        # Get the master public key and address
-        try:
-            pubkey_data = self.show_master_pubkey()
-            if pubkey_data.get("address"):
-                import_result["address"] = pubkey_data["address"]
-        except Exception as e:
-            # If we can't get the address, just continue
-            pass
 
         import_result["success"] = True
         return import_result
