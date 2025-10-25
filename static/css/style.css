@@ -232,6 +232,12 @@ main {
     font-size: 1.1rem;
 }
 
+.btn-sm {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    border-radius: 6px;
+}
+
 .button-group {
     display: flex;
     gap: 1rem;

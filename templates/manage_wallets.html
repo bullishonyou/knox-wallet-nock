@@ -39,7 +39,17 @@
                     return;
                 }
                 
-                let html = '<table class="wallets-table-actual"><thead><tr><th>Address</th><th>Version</th><th>Status</th></tr></thead><tbody>';
+                let html = `
+                    <table class="wallets-table-actual">
+                        <thead>
+                            <tr>
+                                <th style="width: 60%;">Address</th>
+                                <th style="width: 15%;">Version</th>
+                                <th style="width: 25%;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
                 
                 for (const wallet of wallets) {
                     // Skip wallets with empty addresses
@@ -48,13 +58,31 @@
                     }
                     
                     const isActive = wallet.is_active || wallet.address === activeAddress;
-                    const statusBadge = isActive ? '<span class="badge badge-active">🟢 Active</span>' : '<span class="badge badge-inactive" onclick="setActiveWallet(event, \''+wallet.address+'\')" style="cursor: pointer;">⚫ Click to set as active</span>';
+                    const truncatedAddress = wallet.address.substring(0, 20) + '...' + wallet.address.substring(wallet.address.length - 20);
+                    
+                    let actionHtml;
+                    if (isActive) {
+                        actionHtml = '<span class="badge badge-active">🟢 Active</span>';
+                    } else {
+                        actionHtml = `
+                            <button class="btn btn-sm btn-secondary" onclick="setActiveWallet(event, '${wallet.address}', '${wallet.version}')" title="Set as active wallet">
+                                ⭕ Set Active
+                            </button>
+                        `;
+                    }
                     
                     html += `
                         <tr>
-                            <td class="address-cell"><code>${wallet.address}</code></td>
-                            <td class="version-cell">v${wallet.version}</td>
-                            <td class="status-cell">${statusBadge}</td>
+                            <td class="address-cell" onclick="copyToClipboard('${wallet.address}')" title="Click to copy: ${wallet.address}" style="cursor: pointer;">
+                                <code style="word-break: break-all;">${truncatedAddress}</code>
+                                <span class="copy-hint">📋 click to copy</span>
+                            </td>
+                            <td class="version-cell" style="text-align: center;">
+                                <span class="badge" style="background-color: #4CAF50; color: white; padding: 0.4rem 0.8rem; border-radius: 4px;">v${wallet.version}</span>
+                            </td>
+                            <td class="status-cell" style="text-align: center;">
+                                ${actionHtml}
+                            </td>
                         </tr>
                     `;
                 }
@@ -69,9 +97,20 @@
         }
     }
     
-    async function setActiveWallet(event, address) {
+    async function setActiveWallet(event, address, version) {
+        event.preventDefault();
         try {
             hideAlerts();
+            
+            // Cache immediately to localStorage for faster display
+            localStorage.setItem('activeAddress', address);
+            localStorage.setItem('activeVersion', version);
+            localStorage.setItem('activeBalance', '0'); // Reset balance, will be fetched on dashboard
+            
+            // Show success message
+            showSuccess(`Setting ${address.substring(0, 10)}... as active...`);
+            
+            // Call the API in the background
             const response = await fetch('/api/set-active-wallet', {
                 method: 'POST',
                 headers: {
@@ -83,31 +122,31 @@
             const data = await response.json();
             
             if (data.success) {
-                showSuccess(`Wallet ${address.substring(0, 10)}... set as active`);
-                
-                // Cache the active address in localStorage
-                localStorage.setItem('activeAddress', address);
-                
-                // Get version from the current wallet list and cache it
-                const rows = document.querySelectorAll('.wallets-table-actual tbody tr');
-                for (const row of rows) {
-                    const addressCell = row.querySelector('.address-cell code');
-                    if (addressCell && addressCell.textContent.includes(address)) {
-                        const versionCell = row.querySelector('.version-cell');
-                        const version = versionCell.textContent.replace('v', '');
-                        localStorage.setItem('activeVersion', version);
-                        break;
-                    }
-                }
-                
-                // Redirect to dashboard instead of reloading
-                setTimeout(() => window.location.href = '/', 1500);
+                // Redirect immediately to dashboard (don't wait for response)
+                setTimeout(() => window.location.href = '/', 800);
             } else {
                 showError(data.error || 'Failed to set active wallet');
+                // Clear cache on error
+                localStorage.removeItem('activeAddress');
+                localStorage.removeItem('activeVersion');
             }
         } catch (error) {
             showError(error.message);
+            // Clear cache on error
+            localStorage.removeItem('activeAddress');
+            localStorage.removeItem('activeVersion');
         }
+    }
+    
+    function copyToClipboard(address) {
+        navigator.clipboard.writeText(address).then(() => {
+            // Visual feedback
+            showSuccess('✓ Address copied to clipboard!');
+            setTimeout(() => hideAlerts(), 2000);
+        }).catch(err => {
+            console.error('Failed to copy:', err);
+            showError('Failed to copy address');
+        });
     }
     
     function showError(message) {
