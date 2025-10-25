@@ -2,8 +2,6 @@ import subprocess
 import json
 import os
 import re
-import csv
-import shutil
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 
@@ -402,169 +400,87 @@ def parse_list_master_addresses(output: str) -> Dict[str, Any]:
     return result
 
 
-def parse_balance_csv(pubkey: str, csv_folder: str = "balances") -> Dict[str, any]:
+def parse_list_notes(output: str) -> Tuple[str, List[Dict[str, Any]]]:
     """
-    Parse balance from CSV file for a given pubkey.
-    The CLI creates CSV files in the current working directory with format: notes-{pubkey}.csv
-    
-    Only keeps the most recent CSV file per address in the balances folder.
+    Parse list-notes command output with new format including Version field.
     
     Args:
-        pubkey: The public key to get balance for
-        csv_folder: Folder where we store CSV copies (default: 'balances')
-    
+        output: Raw output from list-notes command
+        
     Returns:
-        Dictionary with total_balance_nicks, total_balance_nock, and transactions
+        Tuple of (active_address, list of notes)
+        Each note contains: name, version, assets, block_height, source
     """
-    # Ensure balances folder exists
-    os.makedirs(csv_folder, exist_ok=True)
+    clean_output = strip_ansi_codes(output)
+    notes = []
+    current_note = None
     
-    result = {
-        "total_balance_nicks": 0,
-        "total_balance_nock": 0.0,
-        "transactions": []
-    }
+    lines = clean_output.split('\n')
     
-    # Look for CSV file created by nockchain-wallet command
-    # The CLI creates files named: notes-{pubkey}.csv in the current directory
-    csv_filename = f"notes-{pubkey}.csv"
+    for line in lines:
+        line_stripped = line.strip()
+        
+        # Skip empty lines and separator lines
+        if not line_stripped or line_stripped.startswith('―'):
+            if current_note and 'source' in current_note:
+                notes.append(current_note)
+                current_note = None
+            continue
+        
+        # Skip header lines
+        if 'Wallet Notes' in line_stripped or 'Details' in line_stripped or 'Lock' in line_stripped:
+            continue
+        
+        # Parse note name
+        if line_stripped.startswith('- Name:'):
+            if current_note and 'source' in current_note:
+                notes.append(current_note)
+            
+            current_note = {}
+            # Extract name: "- Name: [address note_name]"
+            match = re.search(r'\[(.*?)\]', line_stripped)
+            if match:
+                current_note['name'] = match.group(1)
+        
+        # Parse version
+        elif current_note and line_stripped.startswith('- Version:'):
+            version_str = line_stripped.replace('- Version:', '').strip()
+            current_note['version'] = version_str
+        
+        # Parse assets
+        elif current_note and line_stripped.startswith('- Assets:'):
+            match = re.search(r'(\d+)', line_stripped)
+            if match:
+                assets_nicks = int(match.group(1))
+                current_note['assets_nicks'] = assets_nicks
+                current_note['assets_nock'] = nicks_to_nock(assets_nicks)
+        
+        # Parse block height
+        elif current_note and line_stripped.startswith('- Block Height:'):
+            match = re.search(r'(\d+)', line_stripped)
+            if match:
+                current_note['block_height'] = match.group(1)
+        
+        # Parse source (transaction ID)
+        elif current_note and line_stripped.startswith('- Source:'):
+            source = line_stripped.replace('- Source:', '').strip()
+            current_note['source'] = source
     
-    try:
-        # Determine which CSV to use: current directory or backups
-        csv_path = None
-        if os.path.exists(csv_filename):
-            csv_path = csv_filename
-        else:
-            # Check if we have a backup in the balances folder
-            backup_files = [f for f in os.listdir(csv_folder)
-                           if f.startswith(f"notes-{pubkey}")]
-            if backup_files:
-                # Use the most recent backup
-                backup_files.sort(key=lambda f: os.path.getmtime(os.path.join(csv_folder, f)), reverse=True)
-                csv_path = os.path.join(csv_folder, backup_files[0])
-        
-        if not csv_path:
-            return result
-        
-        # Parse the CSV file
-        total_nicks = 0
-        try:
-            with open(csv_path, newline='', encoding='utf-8', errors='ignore') as f:
-                reader = csv.reader(f)
-                header = next(reader, None)  # skip header
-                for row in reader:
-                    if len(row) > 2:
-                        try:
-                            assets = row[3].strip()
-                            if assets and assets.isdigit():
-                                nicks = int(assets)
-                                total_nicks += nicks
-                                
-                                # Extract block height (column 3)
-                                block_height = ""
-                                if len(row) > 4:
-                                    block_height = row[4].strip()
-                                
-                                result["transactions"].append({
-                                    "raw": ",".join(row),
-                                    "amount_nicks": nicks,
-                                    "amount_nock": nicks_to_nock(nicks),
-                                    "block_height": block_height
-                                })
-                        except (ValueError, IndexError):
-                            pass
-        except Exception:
-            # If CSV parsing fails and we haven't parsed anything yet, try reading raw lines
-            if not result["transactions"]:
-                try:
-                    with open(csv_path, 'r', encoding='utf-8', errors='ignore') as f:
-                        lines = f.readlines()
-                        for line in lines[1:]:  # Skip header
-                            parts = line.strip().split(',')
-                            if len(parts) > 2:
-                                try:
-                                    assets = parts[3].strip()
-                                    if assets and assets.isdigit():
-                                        nicks = int(assets)
-                                        total_nicks += nicks
-                                        
-                                        # Extract block height (column 3)
-                                        block_height = ""
-                                        if len(parts) > 4:
-                                            block_height = parts[4].strip()
-                                        
-                                        result["transactions"].append({
-                                            "raw": line.strip(),
-                                            "amount_nicks": nicks,
-                                            "amount_nock": nicks_to_nock(nicks),
-                                            "block_height": block_height
-                                        })
-                                except (ValueError, IndexError):
-                                    pass
-                except Exception:
-                    pass
-        
-        result["total_balance_nicks"] = total_nicks
-        result["total_balance_nock"] = nicks_to_nock(total_nicks)
-        
-        return result
+    # Don't forget the last note
+    if current_note and 'source' in current_note:
+        notes.append(current_note)
     
-    except Exception as e:
-        print(f"Error parsing balance CSV: {str(e)}")
-        return result
+    return notes
 
 
-def save_balance_csv(pubkey: str, csv_content: str, csv_folder: str = "balances") -> str:
-    """
-    Save CSV file from CLI output to the balances folder.
-    Deletes old CSV files for this address to keep only the most recent one.
-    Cleans up the CSV file from the current directory after backing it up.
-    
-    Args:
-        pubkey: The public key (used in filename)
-        csv_content: The raw CSV content from CLI (not used, for future extension)
-        csv_folder: Folder to save CSV files (default: 'balances')
-    
-    Returns:
-        Path to saved CSV file
-    """
-    # The CLI already saves to current directory, we just need to move/backup it
-    csv_filename = f"notes-{pubkey}.csv"
-    
-    if not os.path.exists(csv_filename):
-        return ""
-    
-    # Ensure balances folder exists
-    os.makedirs(csv_folder, exist_ok=True)
-    
-    try:
-        # Delete any existing backups for this pubkey
-        backup_files = [f for f in os.listdir(csv_folder)
-                       if f.startswith(f"notes-{pubkey}")]
-        for old_file in backup_files:
-            try:
-                os.remove(os.path.join(csv_folder, old_file))
-            except Exception:
-                pass
-        
-        # Save the new CSV
-        from datetime import datetime
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_filename = f"notes-{pubkey}_{timestamp}.csv"
-        backup_path = os.path.join(csv_folder, backup_filename)
-        
-        shutil.copy2(csv_filename, backup_path)
-        
-        # Clean up the original CSV file from the current directory
-        try:
-            os.remove(csv_filename)
-        except Exception:
-            pass
-        
-        return backup_path
-    except Exception as e:
-        print(f"Error backing up CSV: {str(e)}")
-        return ""
+def nicks_to_nock(nicks: int) -> float:
+    """Convert nicks to NOCK."""
+    return nicks / 65536
+
+
+def nock_to_nicks(nock: float) -> int:
+    """Convert NOCK to nicks."""
+    return int(nock * 65536)
 
 
 class NockchainWalletCLI:
@@ -677,21 +593,6 @@ class NockchainWalletCLI:
             Notes information as string
         """
         output = self._run_command("list-notes-by-address", pubkey)
-        return output
-
-    def list_notes_by_pubkey_csv(self, pubkey: str) -> str:
-        """
-        List notes in CSV format for a public key.
-
-        Args:
-            pubkey: The public key to query
-
-        Returns:
-            Notes information in CSV format
-        """
-        output = self._run_command("list-notes-by-address-csv", pubkey)
-        # Save the CSV output to the balances folder
-        save_balance_csv(pubkey, output)
         return output
 
     def create_transaction(self, pubkey: str, recipient: str, amount: int, fee: int = 1) -> str:
@@ -942,78 +843,6 @@ class NockchainWalletCLI:
         except Exception as e:
             raise NockchainCLIError(f"Failed to get balance: {str(e)}")
 
-    def parse_list_notes(self, output: str) -> Tuple[str, List[Dict[str, Any]]]:
-        """
-        Parse list-notes command output with new format including Version field.
-        
-        Args:
-            output: Raw output from list-notes command
-            
-        Returns:
-            Tuple of (active_address, list of notes)
-            Each note contains: name, version, assets, block_height, source
-        """
-        clean_output = strip_ansi_codes(output)
-        notes = []
-        current_note = None
-        
-        lines = clean_output.split('\n')
-        
-        for line in lines:
-            line_stripped = line.strip()
-            
-            # Skip empty lines and separator lines
-            if not line_stripped or line_stripped.startswith('―'):
-                if current_note and 'source' in current_note:
-                    notes.append(current_note)
-                    current_note = None
-                continue
-            
-            # Skip header lines
-            if 'Wallet Notes' in line_stripped or 'Details' in line_stripped or 'Lock' in line_stripped:
-                continue
-            
-            # Parse note name
-            if line_stripped.startswith('- Name:'):
-                if current_note and 'source' in current_note:
-                    notes.append(current_note)
-                
-                current_note = {}
-                # Extract name: "- Name: [address note_name]"
-                match = re.search(r'\[(.*?)\]', line_stripped)
-                if match:
-                    current_note['name'] = match.group(1)
-            
-            # Parse version
-            elif current_note and line_stripped.startswith('- Version:'):
-                version_str = line_stripped.replace('- Version:', '').strip()
-                current_note['version'] = version_str
-            
-            # Parse assets
-            elif current_note and line_stripped.startswith('- Assets:'):
-                match = re.search(r'(\d+)', line_stripped)
-                if match:
-                    assets_nicks = int(match.group(1))
-                    current_note['assets_nicks'] = assets_nicks
-                    current_note['assets_nock'] = nicks_to_nock(assets_nicks)
-            
-            # Parse block height
-            elif current_note and line_stripped.startswith('- Block Height:'):
-                match = re.search(r'(\d+)', line_stripped)
-                if match:
-                    current_note['block_height'] = match.group(1)
-            
-            # Parse source (transaction ID)
-            elif current_note and line_stripped.startswith('- Source:'):
-                source = line_stripped.replace('- Source:', '').strip()
-                current_note['source'] = source
-        
-        # Don't forget the last note
-        if current_note and 'source' in current_note:
-            notes.append(current_note)
-        
-        return notes
-
     def list_notes(self) -> Dict[str, Any]:
         """
         Get all wallet notes with new output format.
@@ -1028,7 +857,7 @@ class NockchainWalletCLI:
         """
         try:
             output = self._run_command("list-notes")
-            notes = self.parse_list_notes(output)
+            notes = parse_list_notes(output)
             
             # Calculate total balance
             total_nicks = sum(note.get('assets_nicks', 0) for note in notes)
@@ -1041,13 +870,3 @@ class NockchainWalletCLI:
             }
         except Exception as e:
             raise NockchainCLIError(f"Failed to list notes: {str(e)}")
-
-
-def nicks_to_nock(nicks: int) -> float:
-    """Convert nicks to NOCK."""
-    return nicks / 65536
-
-
-def nock_to_nicks(nock: float) -> int:
-    """Convert NOCK to nicks."""
-    return int(nock * 65536)

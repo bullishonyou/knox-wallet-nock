@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, jsonify, session
-from cli_integration import NockchainWalletCLI, NockchainCLIError, nicks_to_nock, nock_to_nicks, parse_balance_csv
+from cli_integration import NockchainWalletCLI, NockchainCLIError, nicks_to_nock, nock_to_nicks
 import os
 from datetime import datetime
 
@@ -124,47 +124,40 @@ def api_import_wallet():
         }), 500
 
 
-@app.route("/balance")
-def balance():
-    """View balance page."""
-    return render_template("balance.html")
-
-
 @app.route("/transactions")
 def transactions():
     """View transactions page."""
     return render_template("transactions.html")
 
 
-@app.route("/api/balance/<pubkey>")
-def api_balance(pubkey):
-    """Get balance for a public key from the CSV file, or fetch it if it doesn't exist."""
+@app.route("/api/transactions")
+def api_transactions():
+    """Get all transactions (notes) for the active wallet."""
     try:
-        # Parse balance from CSV files
-        balance_data = parse_balance_csv(pubkey)
+        # Get active address
+        addresses_data = cli.list_master_addresses()
+        active_address = addresses_data.get("active_address", "")
         
-        # If no balance data found, try to fetch it from the node
-        if balance_data.get("total_balance_nicks", 0) == 0 and not balance_data.get("transactions"):
-            try:
-                # Fetch latest notes from the node
-                cli.list_notes_by_pubkey_csv(pubkey)
-                # Parse the newly saved CSV
-                balance_data = parse_balance_csv(pubkey)
-            except Exception:
-                # If fetch fails, just return the empty balance_data
-                pass
+        if not active_address:
+            return jsonify({
+                "success": False,
+                "error": "No active wallet found"
+            }), 400
+        
+        # Get all notes with balance
+        notes_data = cli.list_notes()
         
         return jsonify({
             "success": True,
-            "pubkey": pubkey,
-            "total_balance_nicks": balance_data.get("total_balance_nicks", 0),
-            "total_balance_nock": balance_data.get("total_balance_nock", 0),
-            "transactions": balance_data.get("transactions", [])
+            "address": active_address,
+            "total_balance_nock": notes_data.get("total_balance_nock", 0),
+            "total_balance_nicks": notes_data.get("total_balance_nicks", 0),
+            "notes": notes_data.get("notes", [])
         })
     except Exception as e:
         return jsonify({
             "success": False,
-            "error": f"Unexpected error: {str(e)}"
+            "error": str(e)
         }), 500
 
 
@@ -328,37 +321,6 @@ def api_refresh_balance():
         return jsonify({
             "success": False,
             "error": f"Unexpected error: {str(e)}"
-        }), 500
-
-
-@app.route("/api/transactions")
-def api_transactions():
-    """Get all transactions (notes) for the active wallet."""
-    try:
-        # Get active address
-        addresses_data = cli.list_master_addresses()
-        active_address = addresses_data.get("active_address", "")
-        
-        if not active_address:
-            return jsonify({
-                "success": False,
-                "error": "No active wallet found"
-            }), 400
-        
-        # Get all notes with balance
-        notes_data = cli.list_notes()
-        
-        return jsonify({
-            "success": True,
-            "address": active_address,
-            "total_balance_nock": notes_data.get("total_balance_nock", 0),
-            "total_balance_nicks": notes_data.get("total_balance_nicks", 0),
-            "notes": notes_data.get("notes", [])
-        })
-    except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": str(e)
         }), 500
 
 
