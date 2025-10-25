@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}Transactions - KNOX{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <h1>Transactions</h1>
+    
+    <div class="form-card">
+        <!-- Active Wallet Address -->
+        <div style="margin-bottom: 2rem;">
+            <h3>Active Address</h3>
+            <div style="padding: 1rem; background-color: var(--surface); border: 1px solid var(--border); border-radius: 8px;">
+                <code id="active-address" style="word-break: break-all; font-size: 0.85rem;">Loading...</code>
+            </div>
+        </div>
+
+        <!-- Balance Card -->
+        <div class="balance-card">
+            <div class="balance-header">
+                <h3>Your Balance</h3>
+                <span class="balance-status" id="balance-status">Loading...</span>
+            </div>
+            <div class="balance-display">
+                <div class="balance-amount" id="balance-amount">0</div>
+                <div class="balance-unit">NOCK</div>
+            </div>
+        </div>
+
+        <!-- Transactions Table -->
+        <div style="margin-top: 2rem;">
+            <h3>All Transactions</h3>
+            <div id="transactions-container">
+                <div class="loading">Loading transactions...</div>
+            </div>
+        </div>
+
+        <div id="error-alert" class="alert alert-error hidden" style="margin-top: 1rem;">
+            <strong>Error:</strong> <span id="error-text"></span>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function loadTransactions() {
+        try {
+            const response = await fetch('/api/transactions');
+            const data = await response.json();
+            
+            if (data.success) {
+                // Display active address
+                const addressDisplay = data.address.substring(0, 20) + '...' + data.address.substring(data.address.length - 20);
+                document.getElementById('active-address').textContent = addressDisplay;
+                document.getElementById('active-address').title = data.address;
+                
+                // Display balance
+                const balanceValue = parseFloat(data.total_balance_nock || 0).toFixed(8);
+                document.getElementById('balance-amount').textContent = balanceValue;
+                document.getElementById('balance-status').textContent = '✓ Up to date';
+                
+                // Display transactions
+                displayTransactions(data.notes);
+            } else {
+                showError(data.error || 'Failed to load transactions');
+            }
+        } catch (error) {
+            showError(error.message);
+        }
+    }
+    
+    function displayTransactions(notes) {
+        const container = document.getElementById('transactions-container');
+        
+        if (!notes || notes.length === 0) {
+            container.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">No transactions found</p>';
+            return;
+        }
+        
+        let html = '<table style="width: 100%; border-collapse: collapse;">';
+        html += '<thead><tr style="border-bottom: 2px solid var(--border);">';
+        html += '<th style="text-align: left; padding: 1rem; font-weight: 600;">Amount (NOCK)</th>';
+        html += '<th style="text-align: left; padding: 1rem; font-weight: 600;">Block</th>';
+        html += '<th style="text-align: left; padding: 1rem; font-weight: 600;">Transaction ID (Source)</th>';
+        html += '</tr></thead>';
+        html += '<tbody>';
+        
+        for (const note of notes) {
+            const amount = parseFloat(note.assets_nock || 0).toFixed(8);
+            const block = note.block_height || 'N/A';
+            const source = note.source || 'Unknown';
+            const truncatedSource = source.substring(0, 15) + '...' + source.substring(source.length - 15);
+            
+            html += '<tr style="border-bottom: 1px solid var(--border); hover: background-color: var(--surface-light);">';
+            html += `<td style="padding: 1rem;"><code>${amount}</code></td>`;
+            html += `<td style="padding: 1rem;"><code>${block}</code></td>`;
+            html += `<td style="padding: 1rem;"><code title="${source}" style="cursor: help;">${truncatedSource}</code></td>`;
+            html += '</tr>';
+        }
+        
+        html += '</tbody>';
+        html += '</table>';
+        
+        container.innerHTML = html;
+    }
+    
+    function showError(message) {
+        document.getElementById('error-text').textContent = message;
+        document.getElementById('error-alert').classList.remove('hidden');
+    }
+    
+    // Load transactions on page load
+    loadTransactions();
+</script>
+{% endblock %}

@@ -455,15 +455,15 @@ def parse_balance_csv(pubkey: str, csv_folder: str = "balances") -> Dict[str, an
                 for row in reader:
                     if len(row) > 2:
                         try:
-                            assets = row[2].strip()
+                            assets = row[3].strip()
                             if assets and assets.isdigit():
                                 nicks = int(assets)
                                 total_nicks += nicks
                                 
                                 # Extract block height (column 3)
                                 block_height = ""
-                                if len(row) > 3:
-                                    block_height = row[3].strip()
+                                if len(row) > 4:
+                                    block_height = row[4].strip()
                                 
                                 result["transactions"].append({
                                     "raw": ",".join(row),
@@ -483,15 +483,15 @@ def parse_balance_csv(pubkey: str, csv_folder: str = "balances") -> Dict[str, an
                             parts = line.strip().split(',')
                             if len(parts) > 2:
                                 try:
-                                    assets = parts[2].strip()
+                                    assets = parts[3].strip()
                                     if assets and assets.isdigit():
                                         nicks = int(assets)
                                         total_nicks += nicks
                                         
                                         # Extract block height (column 3)
                                         block_height = ""
-                                        if len(parts) > 3:
-                                            block_height = parts[3].strip()
+                                        if len(parts) > 4:
+                                            block_height = parts[4].strip()
                                         
                                         result["transactions"].append({
                                             "raw": line.strip(),
@@ -676,7 +676,7 @@ class NockchainWalletCLI:
         Returns:
             Notes information as string
         """
-        output = self._run_command("list-notes-by-pubkey", pubkey)
+        output = self._run_command("list-notes-by-address", pubkey)
         return output
 
     def list_notes_by_pubkey_csv(self, pubkey: str) -> str:
@@ -689,7 +689,7 @@ class NockchainWalletCLI:
         Returns:
             Notes information in CSV format
         """
-        output = self._run_command("list-notes-by-pubkey-csv", pubkey)
+        output = self._run_command("list-notes-by-address-csv", pubkey)
         # Save the CSV output to the balances folder
         save_balance_csv(pubkey, output)
         return output
@@ -873,6 +873,174 @@ class NockchainWalletCLI:
         """
         output = self._run_command("set-active-master-address", address)
         return output
+
+    def show_balance(self) -> Dict[str, Any]:
+        """
+        Get wallet balance using show-balance command.
+        
+        Returns:
+            Dictionary with balance info:
+            {
+                "balance_nicks": int,
+                "balance_nock": float,
+                "block_height": str,
+                "num_notes": int,
+                "version": str,
+                "block_hash": str
+            }
+        """
+        try:
+            output = self._run_command("show-balance")
+            clean_output = strip_ansi_codes(output)
+            
+            result = {
+                "balance_nicks": 0,
+                "balance_nock": 0.0,
+                "block_height": "",
+                "num_notes": 0,
+                "version": "",
+                "block_hash": ""
+            }
+            
+            lines = clean_output.split('\n')
+            
+            for i, line in enumerate(lines):
+                line_stripped = line.strip()
+                
+                # Parse block height from header line
+                if "at height" in line_stripped:
+                    # Extract height from "... at height 38.999"
+                    match = re.search(r'at height\s+([\d.]+)', line_stripped)
+                    if match:
+                        result["block_height"] = match.group(1)
+                    
+                    # Extract block hash
+                    match = re.search(r'from block\s+(\S+)\s+at', line_stripped)
+                    if match:
+                        result["block_hash"] = match.group(1)
+                
+                # Parse wallet version
+                elif "Wallet Version:" in line_stripped:
+                    version = line_stripped.replace("- Wallet Version:", "").strip()
+                    result["version"] = version
+                
+                # Parse number of notes
+                elif "Number of Notes:" in line_stripped:
+                    match = re.search(r'(\d+)', line_stripped)
+                    if match:
+                        result["num_notes"] = int(match.group(1))
+                
+                # Parse balance in nicks
+                elif "Balance:" in line_stripped:
+                    match = re.search(r'(\d+)\s+nicks', line_stripped)
+                    if match:
+                        balance_nicks = int(match.group(1))
+                        result["balance_nicks"] = balance_nicks
+                        result["balance_nock"] = nicks_to_nock(balance_nicks)
+            
+            return result
+        except Exception as e:
+            raise NockchainCLIError(f"Failed to get balance: {str(e)}")
+
+    def parse_list_notes(self, output: str) -> Tuple[str, List[Dict[str, Any]]]:
+        """
+        Parse list-notes command output with new format including Version field.
+        
+        Args:
+            output: Raw output from list-notes command
+            
+        Returns:
+            Tuple of (active_address, list of notes)
+            Each note contains: name, version, assets, block_height, source
+        """
+        clean_output = strip_ansi_codes(output)
+        notes = []
+        current_note = None
+        
+        lines = clean_output.split('\n')
+        
+        for line in lines:
+            line_stripped = line.strip()
+            
+            # Skip empty lines and separator lines
+            if not line_stripped or line_stripped.startswith('―'):
+                if current_note and 'source' in current_note:
+                    notes.append(current_note)
+                    current_note = None
+                continue
+            
+            # Skip header lines
+            if 'Wallet Notes' in line_stripped or 'Details' in line_stripped or 'Lock' in line_stripped:
+                continue
+            
+            # Parse note name
+            if line_stripped.startswith('- Name:'):
+                if current_note and 'source' in current_note:
+                    notes.append(current_note)
+                
+                current_note = {}
+                # Extract name: "- Name: [address note_name]"
+                match = re.search(r'\[(.*?)\]', line_stripped)
+                if match:
+                    current_note['name'] = match.group(1)
+            
+            # Parse version
+            elif current_note and line_stripped.startswith('- Version:'):
+                version_str = line_stripped.replace('- Version:', '').strip()
+                current_note['version'] = version_str
+            
+            # Parse assets
+            elif current_note and line_stripped.startswith('- Assets:'):
+                match = re.search(r'(\d+)', line_stripped)
+                if match:
+                    assets_nicks = int(match.group(1))
+                    current_note['assets_nicks'] = assets_nicks
+                    current_note['assets_nock'] = nicks_to_nock(assets_nicks)
+            
+            # Parse block height
+            elif current_note and line_stripped.startswith('- Block Height:'):
+                match = re.search(r'(\d+)', line_stripped)
+                if match:
+                    current_note['block_height'] = match.group(1)
+            
+            # Parse source (transaction ID)
+            elif current_note and line_stripped.startswith('- Source:'):
+                source = line_stripped.replace('- Source:', '').strip()
+                current_note['source'] = source
+        
+        # Don't forget the last note
+        if current_note and 'source' in current_note:
+            notes.append(current_note)
+        
+        return notes
+
+    def list_notes(self) -> Dict[str, Any]:
+        """
+        Get all wallet notes with new output format.
+        
+        Returns:
+            Dictionary with:
+            {
+                "notes": list of note dicts,
+                "total_balance_nicks": int,
+                "total_balance_nock": float
+            }
+        """
+        try:
+            output = self._run_command("list-notes")
+            notes = self.parse_list_notes(output)
+            
+            # Calculate total balance
+            total_nicks = sum(note.get('assets_nicks', 0) for note in notes)
+            total_nock = nicks_to_nock(total_nicks)
+            
+            return {
+                "notes": notes,
+                "total_balance_nicks": total_nicks,
+                "total_balance_nock": total_nock
+            }
+        except Exception as e:
+            raise NockchainCLIError(f"Failed to list notes: {str(e)}")
 
 
 def nicks_to_nock(nicks: int) -> float:

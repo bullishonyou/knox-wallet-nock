@@ -130,6 +130,12 @@ def balance():
     return render_template("balance.html")
 
 
+@app.route("/transactions")
+def transactions():
+    """View transactions page."""
+    return render_template("transactions.html")
+
+
 @app.route("/api/balance/<pubkey>")
 def api_balance(pubkey):
     """Get balance for a public key from the CSV file, or fetch it if it doesn't exist."""
@@ -260,8 +266,9 @@ def api_addresses():
 
 @app.route("/api/active-wallet")
 def api_active_wallet():
-    """Get active wallet address and balance."""
+    """Get active wallet address and balance using show-balance."""
     try:
+        # Get active address first
         addresses_data = cli.list_master_addresses()
         active_address = addresses_data.get("active_address", "")
         
@@ -271,31 +278,17 @@ def api_active_wallet():
                 "error": "No active wallet found"
             }), 400
         
-        # Find the active wallet version
-        active_version = "1"  # default
-        for wallet in addresses_data.get("addresses", []):
-            if wallet["address"] == active_address:
-                active_version = wallet["version"]
-                break
-        
-        # Check if we can query balance (only v0 addresses support balance queries)
-        if active_version == "1":
-            return jsonify({
-                "success": True,
-                "address": active_address,
-                "balance_nock": 0,
-                "balance_nicks": 0,
-                "warning": "Balance queries only work for v0 addresses. This is a v1 address."
-            })
-        
-        # Parse balance from CSV files for v0 addresses
-        balance_data = parse_balance_csv(active_address)
+        # Get balance from show-balance command
+        balance_info = cli.show_balance()
         
         return jsonify({
             "success": True,
             "address": active_address,
-            "balance_nock": balance_data.get("total_balance_nock", 0),
-            "balance_nicks": balance_data.get("total_balance_nicks", 0)
+            "balance_nock": balance_info.get("balance_nock", 0),
+            "balance_nicks": balance_info.get("balance_nicks", 0),
+            "block_height": balance_info.get("block_height", ""),
+            "num_notes": balance_info.get("num_notes", 0),
+            "version": balance_info.get("version", "")
         })
     except Exception as e:
         return jsonify({
@@ -306,7 +299,7 @@ def api_active_wallet():
 
 @app.route("/api/refresh-balance", methods=["POST"])
 def api_refresh_balance():
-    """Refresh the balance for the active wallet by fetching new data from the node."""
+    """Refresh the balance for the active wallet."""
     try:
         active_address = cli.get_active_master_address()
         if not active_address:
@@ -315,18 +308,16 @@ def api_refresh_balance():
                 "error": "No active wallet found to refresh balance."
             }), 400
 
-        # Fetch latest notes from the node
-        cli.list_notes_by_pubkey_csv(active_address)
-        
-        # Parse the newly saved CSV
-        balance_data = parse_balance_csv(active_address)
+        # Get fresh balance from show-balance
+        balance_info = cli.show_balance()
 
         return jsonify({
             "success": True,
             "address": active_address,
-            "balance_nock": balance_data.get("total_balance_nock", 0),
-            "balance_nicks": balance_data.get("total_balance_nicks", 0),
-            "transactions": balance_data.get("transactions", [])
+            "balance_nock": balance_info.get("balance_nock", 0),
+            "balance_nicks": balance_info.get("balance_nicks", 0),
+            "block_height": balance_info.get("block_height", ""),
+            "num_notes": balance_info.get("num_notes", 0)
         })
     except NockchainCLIError as e:
         return jsonify({
@@ -337,6 +328,37 @@ def api_refresh_balance():
         return jsonify({
             "success": False,
             "error": f"Unexpected error: {str(e)}"
+        }), 500
+
+
+@app.route("/api/transactions")
+def api_transactions():
+    """Get all transactions (notes) for the active wallet."""
+    try:
+        # Get active address
+        addresses_data = cli.list_master_addresses()
+        active_address = addresses_data.get("active_address", "")
+        
+        if not active_address:
+            return jsonify({
+                "success": False,
+                "error": "No active wallet found"
+            }), 400
+        
+        # Get all notes with balance
+        notes_data = cli.list_notes()
+        
+        return jsonify({
+            "success": True,
+            "address": active_address,
+            "total_balance_nock": notes_data.get("total_balance_nock", 0),
+            "total_balance_nicks": notes_data.get("total_balance_nicks", 0),
+            "notes": notes_data.get("notes", [])
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
         }), 500
 
 

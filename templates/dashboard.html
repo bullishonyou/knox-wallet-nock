@@ -37,10 +37,10 @@
             <div class="action-desc">View all wallets</div>
         </a>
         
-        <a href="/send" class="action-card">
-            <div class="action-icon">📤</div>
-            <div class="action-title">Send Transaction</div>
-            <div class="action-desc">Send NOCK</div>
+        <a href="/transactions" class="action-card">
+            <div class="action-icon">📋</div>
+            <div class="action-title">Transactions</div>
+            <div class="action-desc">View all transactions</div>
         </a>
     </div>
 </div>
@@ -48,33 +48,11 @@
 
 {% block scripts %}
 <script>
-    // Check localStorage for cached active wallet first
-    function getCachedActiveWallet() {
-        const cachedAddress = localStorage.getItem('activeAddress');
-        const cachedVersion = localStorage.getItem('activeVersion');
-        const cachedBalance = localStorage.getItem('activeBalance');
-        
-        if (cachedAddress) {
-            return {
-                address: cachedAddress,
-                version: cachedVersion || '1',
-                balance_nock: cachedBalance || '0'
-            };
-        }
-        return null;
-    }
-    
     // Display wallet info from data object
     function displayWalletInfo(data) {
         const infoDiv = document.getElementById('active-wallet-info');
         const balanceDisplay = parseFloat(data.balance_nock || 0).toFixed(8);
-        let warningHtml = '';
-        
-        if (data.warning) {
-            warningHtml = `<div class="alert alert-warning" style="margin-top: 1rem;">
-                ℹ️ ${data.warning}
-            </div>`;
-        }
+        const blockHeight = data.block_height || 'N/A';
         
         infoDiv.innerHTML = `
             <div class="wallet-info">
@@ -86,54 +64,27 @@
                     <span class="label">Balance:</span>
                     <span class="balance">${balanceDisplay} NOCK</span>
                 </div>
+                <div class="info-row">
+                    <span class="label">Block Height:</span>
+                    <span>${blockHeight}</span>
+                </div>
             </div>
-            ${warningHtml}
         `;
     }
     
     async function loadActiveWallet() {
         try {
-            // First, try to use cached data from localStorage
-            const cached = getCachedActiveWallet();
-            if (cached && cached.address) {
-                // Display cached data immediately
-                displayWalletInfo(cached);
-                
-                // In background, fetch fresh data to update cache
-                try {
-                    const response = await fetch('/api/active-wallet');
-                    const data = await response.json();
-                    if (data.success) {
-                        // Update cache with fresh data
-                        localStorage.setItem('activeAddress', data.address);
-                        if (data.balance_nock !== undefined) {
-                            localStorage.setItem('activeBalance', data.balance_nock);
-                        }
-                        // Update UI with fresh data
-                        displayWalletInfo(data);
-                    }
-                } catch (error) {
-                    console.error('Background refresh failed (using cache):', error);
-                    // Keep showing cached data
-                }
+            const response = await fetch('/api/active-wallet');
+            const data = await response.json();
+            
+            if (data.success) {
+                displayWalletInfo(data);
             } else {
-                // No cache, fetch from API
-                const response = await fetch('/api/active-wallet');
-                const data = await response.json();
-                
-                if (data.success) {
-                    // Cache the response
-                    localStorage.setItem('activeAddress', data.address);
-                    localStorage.setItem('activeBalance', data.balance_nock || 0);
-                    
-                    displayWalletInfo(data);
-                } else {
-                    document.getElementById('active-wallet-info').innerHTML = `
-                        <div class="alert alert-warning">
-                            No active wallet. Create or import one to get started!
-                        </div>
-                    `;
-                }
+                document.getElementById('active-wallet-info').innerHTML = `
+                    <div class="alert alert-warning">
+                        No active wallet. Create or import one to get started!
+                    </div>
+                `;
             }
         } catch (error) {
             document.getElementById('active-wallet-info').innerHTML = `
@@ -160,12 +111,7 @@
             const data = await response.json();
             
             if (data.success) {
-                // Update localStorage with fresh balance
-                if (data.balance_nock !== undefined) {
-                    localStorage.setItem('activeBalance', data.balance_nock);
-                }
-                
-                loadActiveWallet(); // Reload the wallet display
+                loadActiveWallet();
                 refreshBtn.textContent = '✓ Balance updated!';
                 setTimeout(() => {
                     refreshBtn.textContent = '🔄 Refresh Balance';
@@ -191,8 +137,5 @@
     
     // Load wallet on page load
     loadActiveWallet();
-    
-    // Note: Removed auto-refresh interval for better performance
-    // Users can manually click "Refresh Balance" when needed
 </script>
 {% endblock %}
