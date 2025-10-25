@@ -24,7 +24,7 @@ Before you begin, you need:
 #### Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/zorp-corp/knox-wallet-nock.git
+git clone https://github.com/bullishonyou/knox-wallet-nock.git
 cd knox-wallet-nock
 ```
 
