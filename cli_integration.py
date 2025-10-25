@@ -443,6 +443,118 @@ def parse_list_active_addresses(output: str) -> Dict[str, str]:
     return result
 
 
+def parse_list_notes_by_address(output: str) -> Dict[str, Any]:
+    """
+    Parse list-notes-by-address output to get transaction notes for a specific address.
+    
+    Format:
+    Wallet Notes for Address 
+    [ADDRESS]
+    ――――――――――――――――――――――――――
+    
+    Details
+    - Name: [address note_id]
+    - Version: [VERSION]
+    - Assets: [NICKS]
+    - Block Height: [HEIGHT]
+    - Source: [SOURCE_ID]
+    Lock
+    - Required Signatures: 1
+    - Signers: [SIGNER_ADDRESS]
+    ――――――――――――――――――――――――――
+
+    Args:
+        output: Raw output from list-notes-by-address command
+
+    Returns:
+        Dictionary with notes list and total balance
+    """
+    clean_output = strip_ansi_codes(output)
+    notes = []
+    
+    lines = clean_output.split('\n')
+    
+    current_note = None
+    i = 0
+    while i < len(lines):
+        line = lines[i].strip()
+        
+        # Skip empty lines, log lines, and separator lines
+        if not line or line.startswith("I ") or line.startswith("[") or line.startswith("―"):
+            # If we have a current note with all fields, save it
+            if current_note and 'source' in current_note:
+                notes.append(current_note)
+                current_note = None
+            i += 1
+            continue
+        
+        # Skip header lines
+        if 'Wallet Notes for Address' in line or 'Details' in line or 'Lock' in line or 'Required Signatures' in line or 'Signers' in line:
+            i += 1
+            continue
+        
+        # Parse note name
+        if line.startswith('- Name:'):
+            if current_note and 'source' in current_note:
+                notes.append(current_note)
+            
+            current_note = {}
+            # Extract name: "- Name: [address note_id]"
+            match = re.search(r'\[(.*?)\]', line)
+            if match:
+                current_note['name'] = match.group(1)
+            i += 1
+            continue
+        
+        # Parse version
+        if current_note and line.startswith('- Version:'):
+            version_str = line.replace('- Version:', '').strip()
+            current_note['version'] = version_str
+            i += 1
+            continue
+        
+        # Parse assets
+        if current_note and line.startswith('- Assets:'):
+            match = re.search(r'(\d+)', line)
+            if match:
+                assets_nicks = int(match.group(1))
+                current_note['assets_nicks'] = assets_nicks
+                current_note['assets_nock'] = nicks_to_nock(assets_nicks)
+            i += 1
+            continue
+        
+        # Parse block height
+        if current_note and line.startswith('- Block Height:'):
+            match = re.search(r'(\d+)', line)
+            if match:
+                current_note['block_height'] = match.group(1)
+            i += 1
+            continue
+        
+        # Parse source (transaction ID)
+        if current_note and line.startswith('- Source:'):
+            source = line.replace('- Source:', '').strip()
+            current_note['source'] = source
+            i += 1
+            continue
+        
+        i += 1
+    
+    # Don't forget the last note
+    if current_note and 'source' in current_note:
+        notes.append(current_note)
+    
+    # Calculate total balance
+    total_nicks = sum(note.get('assets_nicks', 0) for note in notes)
+    total_nock = nicks_to_nock(total_nicks)
+    
+    return {
+        "notes": notes,
+        "total_balance_nicks": total_nicks,
+        "total_balance_nock": total_nock
+    }
+
+
 def parse_list_notes(output: str) -> Tuple[str, List[Dict[str, Any]]]:
     """
     Parse list-notes command output with new format including Version field.
@@ -920,3 +1032,24 @@ class NockchainWalletCLI:
             }
         except Exception as e:
             raise NockchainCLIError(f"Failed to list notes: {str(e)}")
+
+    def list_notes_by_address(self, address: str) -> Dict[str, Any]:
+        """
+        Get wallet notes for a specific address.
+        
+        Args:
+            address: The address to get notes for
+        
+        Returns:
+            Dictionary with:
+            {
+                "notes": list of note dicts,
+                "total_balance_nicks": int,
+                "total_balance_nock": float
+            }
+        """
+        try:
+            output = self._run_command("list-notes-by-address", address)
+            return parse_list_notes_by_address(output)
+        except Exception as e:
+            raise NockchainCLIError(f"Failed to list notes for address: {str(e)}")

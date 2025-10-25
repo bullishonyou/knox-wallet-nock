@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, jsonify, session
-from cli_integration import NockchainWalletCLI, NockchainCLIError, nicks_to_nock, nock_to_nicks
+from cli_integration import NockchainWalletCLI, NockchainCLIError, nicks_to_nock, nock_to_nicks, parse_list_active_addresses
 import os
 from datetime import datetime
 
@@ -134,9 +134,15 @@ def transactions():
 def api_transactions():
     """Get all transactions (notes) for the active wallet."""
     try:
-        # Get active address
-        addresses_data = cli.list_master_addresses()
-        active_address = addresses_data.get("active_address", "")
+        # Get active address using list-active-addresses
+        try:
+            active_addresses_output = cli._run_command("list-active-addresses")
+            active_data = parse_list_active_addresses(active_addresses_output)
+            active_address = active_data.get("address", "")
+        except:
+            # Fallback to list-master-addresses
+            addresses_data = cli.list_master_addresses()
+            active_address = addresses_data.get("active_address", "")
         
         if not active_address:
             return jsonify({
@@ -144,8 +150,8 @@ def api_transactions():
                 "error": "No active wallet found"
             }), 400
         
-        # Get all notes with balance
-        notes_data = cli.list_notes()
+        # Get notes for the active address only
+        notes_data = cli.list_notes_by_address(active_address)
         
         return jsonify({
             "success": True,
