@@ -78,6 +78,13 @@
             return;
         }
         
+        // Sort notes by block height in descending order (latest first)
+        const sortedNotes = [...notes].sort((a, b) => {
+            const blockA = parseInt(a.block_height) || 0;
+            const blockB = parseInt(b.block_height) || 0;
+            return blockB - blockA;
+        });
+        
         let html = '<table style="width: 100%; border-collapse: collapse;">';
         html += '<thead><tr style="border-bottom: 2px solid var(--border);">';
         html += '<th style="text-align: left; padding: 1rem; font-weight: 600;">Amount (NOCK)</th>';
@@ -86,7 +93,7 @@
         html += '</tr></thead>';
         html += '<tbody>';
         
-        for (const note of notes) {
+        for (const note of sortedNotes) {
             const amount = parseFloat(note.assets_nock || 0).toFixed(8);
             const block = note.block_height || 'N/A';
             const source = note.source || 'Unknown';
