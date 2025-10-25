@@ -4,7 +4,7 @@
 
 KNOX is a simple web-based wallet application that makes it easy to create wallets, manage keys, check balances, and send transactions on the Nockchain network—all from your browser.
 
-**DONATIONS**: (v0)3hxt3ijxGzbjDCzvQmWEhQLorg8NQQafd3no1JLrtFVTnvbukfBneZNP6AdjDZdiuRtPvYQc62gzwEB2EJ4WzF2yQuFpbrPRU2fmxW8VJs2cejWR2s1bhGTLXaq9aJ4zJ2a6
+**DONATIONS**:
 (v1) 5pL9VpymCfL5f5SCSkqDpHXY5C3QSD8Zm4vnPiZYJz4zUU1zZCU8KAg
 
 ---
@@ -18,6 +18,7 @@ Before you begin, you need:
 1. **Python 3.9 or higher** - [Download here](https://www.python.org/downloads/)
 2. **Nockchain CLI tools** - Follow the [Nockchain setup guide](https://github.com/zorp-corp/nockchain)
 3. **A running Nockchain node** - Start this before using KNOX to show updated balances and send transactions.
+(!!! You you are on macOS you don't need to run a node)
 
 ### Installation Steps
 
@@ -100,16 +101,7 @@ You should see:
 4. Click **Import Wallet**
 5. Your wallet is now active!
 
-### 3. Check Your Balance
-
-1. Go to **Balance** in the menu
-2. Select your wallet address from the dropdown
-3. Click **Check Balance** 🔄
-4. See your total balance and all transactions with block numbers
-
-**Note:** Only v0 addresses can show balances. v1 addresses show a notice.
-
-### 4. Send a Transaction
+### 3. Send a Transaction
 
 **Note:** Only available if you are running a synced node.
 
@@ -122,7 +114,7 @@ You should see:
 
 ✅ Transaction sent! The blockchain will confirm it.
 
-### 5. Manage Multiple Wallets
+### 4. Manage Multiple Wallets
 
 1. Go to **Manage Wallets** in the menu
 2. See all your wallets (address, version, active status)
@@ -144,7 +136,7 @@ knox-wallet-nock/
 │   ├── dashboard.html       # Home page
 │   ├── create_wallet.html   # Create wallet page
 │   ├── import_wallet.html   # Import wallet page
-│   ├── balance.html         # Check balance page
+│   ├── transactions.html    # Transactions history page
 │   ├── manage_wallets.html  # All wallets page
 │   └── send_transaction.html # Send TX page
 └── static/                  # CSS & JavaScript
